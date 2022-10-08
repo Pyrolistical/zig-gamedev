@@ -3,7 +3,7 @@ const math = std.math;
 const zglfw = @import("zglfw");
 const zgpu = @import("zgpu");
 const wgpu = zgpu.wgpu;
-const zgui = @import("zgui");
+// const zgui = @import("zgui");
 const zm = @import("zmath");
 
 const content_dir = @import("build_options").content_dir;
@@ -156,12 +156,12 @@ fn deinit(allocator: std.mem.Allocator, demo: *DemoState) void {
     demo.* = undefined;
 }
 
-fn update(demo: *DemoState) void {
-    zgui.backend.newFrame(
-        demo.gctx.swapchain_descriptor.width,
-        demo.gctx.swapchain_descriptor.height,
-    );
-    zgui.showDemoWindow(null);
+fn update(_: *DemoState) void {
+    // zgui.backend.newFrame(
+    //     demo.gctx.swapchain_descriptor.width,
+    //     demo.gctx.swapchain_descriptor.height,
+    // );
+    // zgui.showDemoWindow(null);
 }
 
 fn draw(demo: *DemoState) void {
@@ -264,7 +264,7 @@ fn draw(demo: *DemoState) void {
                 pass.release();
             }
 
-            zgui.backend.draw(pass);
+            // zgui.backend.draw(pass);
         }
 
         break :commands encoder.finish(null);
@@ -340,24 +340,24 @@ pub fn main() !void {
     };
     defer deinit(allocator, &demo);
 
-    const scale_factor = scale_factor: {
-        const scale = window.getContentScale();
-        break :scale_factor math.max(scale[0], scale[1]);
-    };
+    // const scale_factor = scale_factor: {
+    //     const scale = window.getContentScale();
+    //     break :scale_factor math.max(scale[0], scale[1]);
+    // };
 
-    zgui.init(allocator);
-    defer zgui.deinit();
+    // zgui.init(allocator);
+    // defer zgui.deinit();
 
-    _ = zgui.io.addFontFromFile(content_dir ++ "Roboto-Medium.ttf", 16.0 * scale_factor);
+    // _ = zgui.io.addFontFromFile(content_dir ++ "Roboto-Medium.ttf", 16.0 * scale_factor);
 
-    zgui.backend.init(
-        window,
-        demo.gctx.device,
-        @enumToInt(zgpu.GraphicsContext.swapchain_format),
-    );
-    defer zgui.backend.deinit();
+    // zgui.backend.init(
+    //     window,
+    //     demo.gctx.device,
+    //     @enumToInt(zgpu.GraphicsContext.swapchain_format),
+    // );
+    // defer zgui.backend.deinit();
 
-    zgui.getStyle().scaleAllSizes(scale_factor);
+    // zgui.getStyle().scaleAllSizes(scale_factor);
 
     while (!window.shouldClose() and window.getKey(.escape) != .press) {
         zglfw.pollEvents();
