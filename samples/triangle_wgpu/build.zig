@@ -25,7 +25,22 @@ pub fn build(b: *std.build.Builder, options: Options) *std.build.LibExeObjStep {
     exe.setBuildMode(options.build_mode);
     exe.setTarget(options.target);
 
-    const zgpu_options = zgpu.BuildOptionsStep.init(b, .{});
+    link(exe, zgpu.BuildOptionsStep.init(b, .{}));
+
+    return exe;
+}
+
+pub fn buildTests(b: *std.build.Builder, options: Options) *std.build.LibExeObjStep {
+    const tests = b.addTest(thisDir() ++ "/src/triangle_wgpu.zig");
+    tests.setBuildMode(options.build_mode);
+    tests.setTarget(options.target);
+
+    link(tests, zgpu.BuildOptionsStep.init(b, .{}));
+
+    return tests;
+}
+
+fn link(exe: *std.build.LibExeObjStep, zgpu_options: zgpu.BuildOptionsStep) void {
     const zgpu_pkg = zgpu.getPkg(&.{ zgpu_options.getPkg(), zpool.pkg, zglfw.pkg });
 
     exe.addPackage(zgpu_pkg);
@@ -36,10 +51,7 @@ pub fn build(b: *std.build.Builder, options: Options) *std.build.LibExeObjStep {
     zgpu.link(exe, zgpu_options);
     zglfw.link(exe);
     zgui.link(exe);
-
-    return exe;
 }
-
 inline fn thisDir() []const u8 {
     return comptime std.fs.path.dirname(@src().file) orelse ".";
 }

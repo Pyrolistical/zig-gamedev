@@ -365,3 +365,62 @@ pub fn main() !void {
         draw(&demo);
     }
 }
+
+test "memory leak check" {
+    zglfw.init() catch {
+        std.log.err("Failed to initialize GLFW library.", .{});
+        return;
+    };
+    defer zglfw.terminate();
+
+    // Change current working directory to where the executable is located.
+    {
+        var buffer: [1024]u8 = undefined;
+        const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
+        std.os.chdir(path) catch {};
+    }
+
+    zglfw.defaultWindowHints();
+    zglfw.windowHint(.cocoa_retina_framebuffer, 1);
+    zglfw.windowHint(.client_api, 0);
+    const window = zglfw.createWindow(1600, 1000, window_title, null, null) catch {
+        std.log.err("Failed to create demo window.", .{});
+        return;
+    };
+    defer window.destroy();
+    window.setSizeLimits(400, 400, -1, -1);
+
+    const allocator = std.testing.allocator;
+
+    var demo = init(allocator, window) catch {
+        std.log.err("Failed to initialize the demo.", .{});
+        return;
+    };
+    defer deinit(allocator, &demo);
+
+    // const scale_factor = scale_factor: {
+    //     const scale = window.getContentScale();
+    //     break :scale_factor math.max(scale[0], scale[1]);
+    // };
+
+    // zgui.init(allocator);
+    // defer zgui.deinit();
+
+    // _ = zgui.io.addFontFromFile(content_dir ++ "Roboto-Medium.ttf", 16.0 * scale_factor);
+
+    // zgui.backend.init(
+    //     window,
+    //     demo.gctx.device,
+    //     @enumToInt(zgpu.GraphicsContext.swapchain_format),
+    // );
+    // defer zgui.backend.deinit();
+
+    // zgui.getStyle().scaleAllSizes(scale_factor);
+
+    var frames: i16 = 12000;
+    while (frames > 0 and window.getKey(.escape) != .press) : (frames -= 1) {
+        zglfw.pollEvents();
+        update(&demo);
+        draw(&demo);
+    }
+}
