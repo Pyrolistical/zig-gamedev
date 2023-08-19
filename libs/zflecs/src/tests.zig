@@ -2,6 +2,7 @@ const std = @import("std");
 const ecs = @import("zflecs.zig");
 
 const expect = std.testing.expect;
+const expectEqual = std.testing.expectEqual;
 
 const print = std.log.info;
 //const print = std.debug.print;
@@ -307,4 +308,22 @@ test "zflecs.try_different_alignments" {
         _ = ecs.set(world, entity, Component, .{});
         _ = ecs.get(world, entity, Component);
     }
+}
+
+test "zflecs.pairs" {
+    const world = ecs.init();
+    defer _ = ecs.fini(world);
+
+    const Smiles = struct {};
+    ecs.TAG(world, Walking);
+    ecs.TAG(world, Smiles);
+
+    const awkwardly = ecs.new_entity(world, "Awkwardly");
+
+    const entity = ecs.new_entity(world, "Bob");
+    _ = ecs.set_pair(world, entity, ecs.id(Walking), awkwardly, Walking, .{});
+
+    // try expect(ecs.has_pair(world, entity, ecs.id(Walking), awkwardly));
+    // const quickly = ecs.new_entity(world, "Quickly");
+    // try expect(!ecs.has_pair(world, entity, ecs.id(Walking), quickly));
 }

@@ -2201,6 +2201,15 @@ pub fn set_pair(
     return ecs_set_id(world, subject, pair(first, second), @sizeOf(T), @as(*const anyopaque, @ptrCast(&val)));
 }
 
+// pub fn has_pair(
+//     world: *world_t,
+//     subject: entity_t,
+//     first: entity_t,
+//     second: entity_t,
+// ) bool {
+//     return ecs_has_id(world, subject, pair(first, second));
+// }
+
 pub fn remove_pair(world: *world_t, subject: entity_t, first: entity_t, second: entity_t) void {
     remove_id(world, subject, pair(first, second));
 }
