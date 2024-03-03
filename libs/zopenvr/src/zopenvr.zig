@@ -854,7 +854,7 @@ pub fn init(application_type: ApplicationType) InitError!void {
     try init_error.maybe();
 }
 
-const InitError = error{
+pub const InitError = error{
     None,
     Unknown,
     InitInstallationNotFound,
