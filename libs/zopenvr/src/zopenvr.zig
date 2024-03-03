@@ -715,3 +715,6 @@ test "init/shutdown utility" {
 
 pub const isHmdPresent = VR_IsHmdPresent;
 extern fn VR_IsHmdPresent() bool;
+
+pub const isRuntimeInstalled = VR_IsRuntimeInstalled;
+extern fn VR_IsRuntimeInstalled() bool;

@@ -9,5 +9,6 @@ pub fn main() !void {
     };
     defer zopenvr.shutdown();
 
-    std.debug.print("{}\n", .{zopenvr.isHmdPresent()});
+    std.debug.print("isRuntimeInstalled {}\n", .{zopenvr.isRuntimeInstalled()});
+    std.debug.print("isHmdPresent {}\n", .{zopenvr.isHmdPresent()});
 }
