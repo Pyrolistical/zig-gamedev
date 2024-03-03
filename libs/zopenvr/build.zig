@@ -23,10 +23,6 @@ pub const Package = struct {
                 exe.addLibraryPath(.{ .path = thisDir() ++ "/libs/openvr/lib/linux64" });
                 exe.linkSystemLibrary("openvr_api");
             },
-            .macos => {
-                exe.addLibraryPath(.{ .path = thisDir() ++ "/libs/openvr/lib/osx32" });
-                exe.linkSystemLibrary("openvr_api");
-            },
             else => {},
         }
     }
@@ -59,14 +55,6 @@ pub fn package(
                 &b.addInstallFile(
                     .{ .path = thisDir() ++ "/libs/openvr/bin/linux64/libopenvr_api.so" },
                     "bin/libopenvr_api.so.0",
-                ).step,
-            );
-        },
-        .macos => {
-            install_step.dependOn(
-                &b.addInstallFile(
-                    .{ .path = thisDir() ++ "/libs/openvr/bin/linux64/libopenvr_api.dylib" },
-                    "bin/libopenvr_api.dylib",
                 ).step,
             );
         },
