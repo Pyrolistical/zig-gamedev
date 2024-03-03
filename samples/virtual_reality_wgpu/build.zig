@@ -4,8 +4,8 @@ const Options = @import("../../build.zig").Options;
 
 pub fn build(b: *std.Build, options: Options) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
-        .name = "minimal_zopenvr_zgui_wgpu",
-        .root_source_file = .{ .path = thisDir() ++ "/src/minimal_zopenvr_zgui_wgpu.zig" },
+        .name = "virtual_reality_wgpu",
+        .root_source_file = .{ .path = thisDir() ++ "/src/virtual_reality_wgpu.zig" },
         .target = options.target,
         .optimize = options.optimize,
     });
