@@ -787,7 +787,7 @@ pub const EventType = enum(i32) {
     vendor_specific_reserved_end = 19999,
 };
 pub const System = extern struct {
-    GetRecommendedRenderTargetSize: *const fn ([*c]u32, [*c]u32) callconv(.C) void,
+    GetRecommendedRenderTargetSize: *const fn (*u32, *u32) callconv(.C) void,
     GetProjectionMatrix: *const fn (Eye, f32, f32) callconv(.C) HmdMatrix44,
     GetProjectionRaw: *const fn (Eye, [*c]f32, [*c]f32, [*c]f32, [*c]f32) callconv(.C) void,
     ComputeDistortion: *const fn (Eye, f32, f32, [*c]DistortionCoordinates) callconv(.C) bool,
@@ -841,6 +841,14 @@ pub const System = extern struct {
         const system: *System = @ptrCast(VR_GetGenericInterface(System.interface_name, &init_error));
         try init_error.maybe();
         return system;
+    }
+
+    const RenderTargetSize = struct { width: u32, height: u32 };
+
+    pub fn getRecommendedRenderTargetSize(system: System) RenderTargetSize {
+        var render_target_size: RenderTargetSize = .{ .width = 0, .height = 0 };
+        system.GetRecommendedRenderTargetSize(&render_target_size.width, &render_target_size.height);
+        return render_target_size;
     }
 
     pub fn getRuntimeVersion(system: System) [:0]const u8 {

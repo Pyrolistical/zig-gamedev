@@ -317,7 +317,7 @@ const OpenVRWindow = struct {
 
     fn show(self: *OpenVRWindow) void {
         zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
-        zgui.setNextWindowSize(.{ .w = 600, .h = 500, .cond = .first_use_ever });
+        zgui.setNextWindowSize(.{ .w = 1000, .h = 1000, .cond = .first_use_ever });
 
         defer zgui.end();
         if (zgui.begin("OpenVR", .{})) {
@@ -325,30 +325,40 @@ const OpenVRWindow = struct {
                 if (zgui.button("shutdown", .{})) {
                     zopenvr.shutdown();
                     self.initialized = zopenvr.InitError.None;
+                    self.system = zopenvr.InitError.None;
                     return;
                 }
                 {
                     zgui.beginDisabled(.{ .disabled = true });
                     defer zgui.endDisabled();
                     _ = zgui.checkbox("head mounted display present", .{ .v = @constCast(&zopenvr.isHmdPresent()) });
+                    _ = zgui.checkbox("runtime installed", .{ .v = @constCast(&zopenvr.isRuntimeInstalled()) });
                 }
 
                 zgui.separatorText("System");
                 if (self.system) |system| {
                     zgui.beginDisabled(.{ .disabled = true });
                     defer zgui.endDisabled();
-                    if (zopenvr.isRuntimeInstalled()) {
-                        _ = zgui.inputText("runtime version", .{ .buf = @constCast(system.getRuntimeVersion()) });
-                    } else {
-                        _ = zgui.inputText("runtime version", .{ .buf = @constCast("not installed") });
+
+                    {
+                        zgui.text("recommended render target size", .{});
+                        zgui.indent(.{ .indent_w = 30.0 });
+                        defer zgui.unindent(.{ .indent_w = 30.0 });
+                        const recommended_render_target_size = system.getRecommendedRenderTargetSize();
+                        _ = zgui.inputScalar("width", u32, .{ .v = @constCast(&recommended_render_target_size.width) });
+                        _ = zgui.inputScalar("height", u32, .{ .v = @constCast(&recommended_render_target_size.height) });
                     }
+
+                    _ = zgui.inputText("runtime version", .{ .buf = @constCast(system.getRuntimeVersion()) });
                 } else |err| {
+                    if (zgui.button("init##system", .{})) {
+                        self.system = zopenvr.System.init();
+                    }
                     zgui.text("init error: {!}", .{err});
                 }
             } else |err| {
                 if (zgui.button("init", .{})) {
                     self.initialized = zopenvr.init(.overlay);
-                    self.system = zopenvr.System.init();
                 }
                 zgui.text("init error: {!}", .{err});
             }
