@@ -1,5 +1,5 @@
 const std = @import("std");
-const zopenvr = @import("zopenvr");
+const OpenVR = @import("zopenvr");
 
 const zglfw = @import("zglfw");
 const zgpu = @import("zgpu");
@@ -301,18 +301,21 @@ const DisplayWindow = struct {
 };
 
 const OpenVRWindow = struct {
-    initialized: zopenvr.InitError!void = zopenvr.InitError.None,
-
-    system: zopenvr.InitError!*zopenvr.System = zopenvr.InitError.None,
+    init_error: OpenVR.InitError = OpenVR.InitError.None,
+    system_init_error: OpenVR.InitError = OpenVR.InitError.None,
+    openvr: ?OpenVR = null,
+    system: ?OpenVR.System = null,
 
     pub fn init() OpenVRWindow {
         return .{};
     }
 
-    pub fn deinit(self: OpenVRWindow) void {
-        if (self.initialized) {
-            zopenvr.shutdown();
-        } else |_| {}
+    pub fn deinit(self: *OpenVRWindow) void {
+        if (self.openvr) |openvr| {
+            openvr.deinit();
+        }
+        self.openvr = null;
+        self.system = null;
     }
 
     fn show(self: *OpenVRWindow) void {
@@ -321,18 +324,18 @@ const OpenVRWindow = struct {
 
         defer zgui.end();
         if (zgui.begin("OpenVR", .{})) {
-            if (self.initialized) {
+            if (self.openvr) |openvr| {
                 if (zgui.button("shutdown", .{})) {
-                    zopenvr.shutdown();
-                    self.initialized = zopenvr.InitError.None;
-                    self.system = zopenvr.InitError.None;
+                    openvr.deinit();
+                    self.openvr = null;
+                    self.system = null;
                     return;
                 }
                 {
                     zgui.beginDisabled(.{ .disabled = true });
                     defer zgui.endDisabled();
-                    _ = zgui.checkbox("head mounted display present", .{ .v = @constCast(&zopenvr.isHmdPresent()) });
-                    _ = zgui.checkbox("runtime installed", .{ .v = @constCast(&zopenvr.isRuntimeInstalled()) });
+                    _ = zgui.checkbox("head mounted display present", .{ .v = @constCast(&openvr.isHmdPresent()) });
+                    _ = zgui.checkbox("runtime installed", .{ .v = @constCast(&openvr.isRuntimeInstalled()) });
                 }
 
                 zgui.separatorText("System");
@@ -350,17 +353,25 @@ const OpenVRWindow = struct {
                     }
 
                     _ = zgui.inputText("runtime version", .{ .buf = @constCast(system.getRuntimeVersion()) });
-                } else |err| {
-                    if (zgui.button("init##system", .{})) {
-                        self.system = zopenvr.System.init();
+                } else {
+                    if (zgui.button("init", .{})) {
+                        self.system_init_error = OpenVR.InitError.None;
+                        self.system = openvr.system() catch |err| system: {
+                            self.system_init_error = err;
+                            break :system null;
+                        };
                     }
-                    zgui.text("init error: {!}", .{err});
+                    zgui.text("init error: {!}", .{self.system_init_error});
                 }
-            } else |err| {
+            } else {
                 if (zgui.button("init", .{})) {
-                    self.initialized = zopenvr.init(.overlay);
+                    self.init_error = OpenVR.InitError.None;
+                    self.openvr = OpenVR.init(.overlay) catch |err| openvr: {
+                        self.init_error = err;
+                        break :openvr null;
+                    };
                 }
-                zgui.text("init error: {!}", .{err});
+                zgui.text("init error: {!}", .{self.init_error});
             }
         }
     }
