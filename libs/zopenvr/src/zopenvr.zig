@@ -1,9 +1,9 @@
 const VkInstance = anyopaque;
 
-pub const HmdMatrix34 = extern struct {
+pub const Matrix34 = extern struct {
     m: [3][4]f32,
 };
-pub const HmdMatrix44 = extern struct {
+pub const Matrix44 = extern struct {
     m: [4][4]f32,
 };
 
@@ -11,11 +11,11 @@ pub const Eye = enum(i32) {
     left = 0,
     right = 1,
 };
-pub const HmdVector2 = extern struct {
+pub const Vector2 = extern struct {
     v: [2]f32,
 };
 pub const HiddenAreaMesh = extern struct {
-    vertex_data: [*c]HmdVector2,
+    vertex_data: [*c]Vector2,
     triangle_count: u32,
 };
 
@@ -44,18 +44,25 @@ pub const TrackingUniverseOrigin = enum(i32) {
 };
 
 pub const TrackedDevicePose = extern struct {
-    device_to_absolute_tracking: HmdMatrix34,
-    velocity: HmdVector3,
-    angular_velocity: HmdVector3,
+    device_to_absolute_tracking: Matrix34,
+    velocity: Vector3,
+    angular_velocity: Vector3,
     tracking_result: TrackingResult,
     pose_is_valid: bool,
     device_is_connected: bool,
 };
 
-pub const HmdVector3 = extern struct {
+pub const Vector3 = extern struct {
     v: [3]f32,
 };
 
+pub const Vector4 = extern struct {
+    v: [4]f32,
+};
+
+pub const Quad = extern struct {
+    corners: [4]Vector3,
+};
 pub const TrackingResult = enum(i32) {
     uninitialized = 1,
     calibrating_in_progress = 100,
@@ -328,7 +335,26 @@ pub const TrackedDeviceProperty = enum(i32) {
     tracked_device_property_max = 1000000,
 };
 
-pub const TrackedPropertyError = enum(i32) {
+pub const TrackedPropertyError = error{
+    Success,
+    WrongDataType,
+    WrongDeviceClass,
+    BufferTooSmall,
+    UnknownProperty,
+    InvalidDevice,
+    CouldNotContactServer,
+    ValueNotProvidedByDevice,
+    StringExceedsMaximumLength,
+    NotYetAvailable,
+    PermissionDenied,
+    InvalidOperation,
+    CannotWriteToWildcards,
+    IpcReadFailure,
+    OutOfMemory,
+    InvalidContainer,
+};
+
+pub const TrackedPropertyErrorCode = enum(i32) {
     success = 0,
     wrong_data_type = 1,
     wrong_device_class = 2,
@@ -345,6 +371,27 @@ pub const TrackedPropertyError = enum(i32) {
     ipc_read_failure = 13,
     out_of_memory = 14,
     invalid_container = 15,
+
+    pub fn maybe(property_error: TrackedPropertyErrorCode) TrackedPropertyError!void {
+        return switch (property_error) {
+            .success => {},
+            .wrong_data_type => TrackedPropertyError.WrongDataType,
+            .wrong_device_class => TrackedPropertyError.WrongDeviceClass,
+            .buffer_too_small => TrackedPropertyError.BufferTooSmall,
+            .unknown_property => TrackedPropertyError.UnknownProperty,
+            .invalid_device => TrackedPropertyError.InvalidDevice,
+            .could_not_contact_server => TrackedPropertyError.CouldNotContactServer,
+            .value_not_provided_by_device => TrackedPropertyError.ValueNotProvidedByDevice,
+            .string_exceeds_maximum_length => TrackedPropertyError.StringExceedsMaximumLength,
+            .not_yet_available => TrackedPropertyError.NotYetAvailable,
+            .permission_denied => TrackedPropertyError.PermissionDenied,
+            .invalid_operation => TrackedPropertyError.InvalidOperation,
+            .cannot_write_to_wildcards => TrackedPropertyError.CannotWriteToWildcards,
+            .ipc_read_failure => TrackedPropertyError.IpcReadFailure,
+            .out_of_memory => TrackedPropertyError.OutOfMemory,
+            .invalid_container => TrackedPropertyError.InvalidContainer,
+        };
+    }
 };
 
 pub const PropertyTypeTag = u32;
@@ -565,7 +612,7 @@ pub const ControllerState = extern struct {
     packet_num: u32,
     button_pressed: u64,
     button_touched: u64,
-    r_axis: [5]ControllerAxis,
+    axis: [5]ControllerAxis,
 };
 pub const ButtonId = enum(i32) {
     system = 0,
@@ -599,11 +646,24 @@ pub const ControllerAxisType = enum(i32) {
     joystick = 2,
     trigger = 3,
 };
-pub const FirmwareError = enum(i32) {
+pub const FirmwareError = error{
+    None,
+    Success,
+    Fail,
+};
+pub const FirmwareErrorCode = enum(i32) {
     none = 0,
     success = 1,
     fail = 2,
+
+    pub fn maybe(firmware_error: FirmwareErrorCode) FirmwareError!void {
+        return switch (firmware_error) {
+            .none, .success => {},
+            .fail => FirmwareError.fail,
+        };
+    }
 };
+
 pub const EventType = enum(i32) {
     none = 0,
     tracked_device_activated = 100,
@@ -788,40 +848,40 @@ pub const EventType = enum(i32) {
 };
 pub const System = extern struct {
     GetRecommendedRenderTargetSize: *const fn (*u32, *u32) callconv(.C) void,
-    GetProjectionMatrix: *const fn (Eye, f32, f32) callconv(.C) HmdMatrix44,
-    GetProjectionRaw: *const fn (Eye, [*c]f32, [*c]f32, [*c]f32, [*c]f32) callconv(.C) void,
-    ComputeDistortion: *const fn (Eye, f32, f32, [*c]DistortionCoordinates) callconv(.C) bool,
-    GetEyeToHeadTransform: *const fn (Eye) callconv(.C) HmdMatrix34,
-    GetTimeSinceLastVsync: *const fn ([*c]f32, [*c]u64) callconv(.C) bool,
+    GetProjectionMatrix: *const fn (Eye, f32, f32) callconv(.C) Matrix44,
+    GetProjectionRaw: *const fn (Eye, *f32, *f32, *f32, *f32) callconv(.C) void,
+    ComputeDistortion: *const fn (Eye, f32, f32, *DistortionCoordinates) callconv(.C) bool,
+    GetEyeToHeadTransform: *const fn (Eye) callconv(.C) Matrix34,
+    GetTimeSinceLastVsync: *const fn (*f32, *u64) callconv(.C) bool,
     GetD3D9AdapterIndex: *const fn () callconv(.C) i32,
-    GetDXGIOutputInfo: *const fn ([*c]i32) callconv(.C) void,
-    GetOutputDevice: *const fn ([*c]u64, TextureType, ?*VkInstance) callconv(.C) void,
+    GetDXGIOutputInfo: *const fn (*i32) callconv(.C) void,
+    GetOutputDevice: *const fn (*u64, TextureType, ?*VkInstance) callconv(.C) void,
     IsDisplayOnDesktop: *const fn () callconv(.C) bool,
     SetDisplayVisibility: *const fn (bool) callconv(.C) bool,
-    GetDeviceToAbsoluteTrackingPose: *const fn (TrackingUniverseOrigin, f32, [*c]TrackedDevicePose, u32) callconv(.C) void,
-    GetSeatedZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) HmdMatrix34,
-    GetRawZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) HmdMatrix34,
-    GetSortedTrackedDeviceIndicesOfClass: *const fn (TrackedDeviceClass, [*c]TrackedDeviceIndex, u32, TrackedDeviceIndex) callconv(.C) u32,
+    GetDeviceToAbsoluteTrackingPose: *const fn (TrackingUniverseOrigin, f32, *TrackedDevicePose, u32) callconv(.C) void,
+    GetSeatedZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) Matrix34,
+    GetRawZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) Matrix34,
+    GetSortedTrackedDeviceIndicesOfClass: *const fn (TrackedDeviceClass, *TrackedDeviceIndex, u32, TrackedDeviceIndex) callconv(.C) u32,
     GetTrackedDeviceActivityLevel: *const fn (TrackedDeviceIndex) callconv(.C) DeviceActivityLevel,
-    ApplyTransform: *const fn ([*c]TrackedDevicePose, [*c]TrackedDevicePose, [*c]HmdMatrix34) callconv(.C) void,
+    ApplyTransform: *const fn (*TrackedDevicePose, *TrackedDevicePose, *Matrix34) callconv(.C) void,
     GetTrackedDeviceIndexForControllerRole: *const fn (TrackedControllerRole) callconv(.C) TrackedDeviceIndex,
     GetControllerRoleForTrackedDeviceIndex: *const fn (TrackedDeviceIndex) callconv(.C) TrackedControllerRole,
     GetTrackedDeviceClass: *const fn (TrackedDeviceIndex) callconv(.C) TrackedDeviceClass,
     IsTrackedDeviceConnected: *const fn (TrackedDeviceIndex) callconv(.C) bool,
-    GetBoolTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]TrackedPropertyError) callconv(.C) bool,
-    GetFloatTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]TrackedPropertyError) callconv(.C) f32,
-    GetInt32TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]TrackedPropertyError) callconv(.C) i32,
-    GetUint64TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]TrackedPropertyError) callconv(.C) u64,
-    GetMatrix34TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]TrackedPropertyError) callconv(.C) HmdMatrix34,
-    GetArrayTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTag, ?*anyopaque, u32, [*c]TrackedPropertyError) callconv(.C) u32,
-    GetStringTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, [*c]u8, u32, [*c]TrackedPropertyError) callconv(.C) u32,
-    GetPropErrorNameFromEnum: *const fn (TrackedPropertyError) callconv(.C) [*c]u8,
-    PollNextEvent: *const fn ([*c]Event, u32) callconv(.C) bool,
-    PollNextEventWithPose: *const fn (TrackingUniverseOrigin, [*c]Event, u32, [*c]TrackedDevicePose) callconv(.C) bool,
+    GetBoolTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) bool,
+    GetFloatTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) f32,
+    GetInt32TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) i32,
+    GetUint64TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) u64,
+    GetMatrix34TrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) Matrix34,
+    GetArrayTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTag, ?*anyopaque, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
+    GetStringTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
+    GetPropErrorNameFromEnum: *const fn (TrackedPropertyErrorCode) callconv(.C) [*c]u8,
+    PollNextEvent: *const fn (*Event, u32) callconv(.C) bool,
+    PollNextEventWithPose: *const fn (TrackingUniverseOrigin, *Event, u32, *TrackedDevicePose) callconv(.C) bool,
     GetEventTypeNameFromEnum: *const fn (EventType) callconv(.C) [*c]u8,
     GetHiddenAreaMesh: *const fn (Eye, HiddenAreaMeshType) callconv(.C) HiddenAreaMesh,
-    GetControllerState: *const fn (TrackedDeviceIndex, [*c]ControllerState, u32) callconv(.C) bool,
-    GetControllerStateWithPose: *const fn (TrackingUniverseOrigin, TrackedDeviceIndex, [*c]ControllerState, u32, [*c]TrackedDevicePose) callconv(.C) bool,
+    GetControllerState: *const fn (TrackedDeviceIndex, *ControllerState, u32) callconv(.C) bool,
+    GetControllerStateWithPose: *const fn (TrackingUniverseOrigin, TrackedDeviceIndex, *ControllerState, u32, *TrackedDevicePose) callconv(.C) bool,
     TriggerHapticPulse: *const fn (TrackedDeviceIndex, u32, c_ushort) callconv(.C) void,
     GetButtonIdNameFromEnum: *const fn (ButtonId) callconv(.C) [*c]u8,
     GetControllerAxisTypeNameFromEnum: *const fn (ControllerAxisType) callconv(.C) [*c]u8,
@@ -829,7 +889,7 @@ pub const System = extern struct {
     IsSteamVRDrawingControllers: *const fn () callconv(.C) bool,
     ShouldApplicationPause: *const fn () callconv(.C) bool,
     ShouldApplicationReduceRenderingWork: *const fn () callconv(.C) bool,
-    PerformFirmwareUpdate: *const fn (TrackedDeviceIndex) callconv(.C) FirmwareError,
+    PerformFirmwareUpdate: *const fn (TrackedDeviceIndex) callconv(.C) FirmwareErrorCode,
     AcknowledgeQuit_Exiting: *const fn () callconv(.C) void,
     GetAppContainerFilePaths: *const fn ([*c]u8, u32) callconv(.C) u32,
     GetRuntimeVersion: *const fn () callconv(.C) [*c]u8,
@@ -843,12 +903,269 @@ pub const System = extern struct {
         return system;
     }
 
-    const RenderTargetSize = struct { width: u32, height: u32 };
+    pub const RenderTargetSize = struct { width: u32, height: u32 };
 
     pub fn getRecommendedRenderTargetSize(system: System) RenderTargetSize {
         var render_target_size: RenderTargetSize = .{ .width = 0, .height = 0 };
         system.GetRecommendedRenderTargetSize(&render_target_size.width, &render_target_size.height);
         return render_target_size;
+    }
+
+    pub fn getProjectionMatrix(system: System, eye: Eye, near: f32, far: f32) Matrix44 {
+        return system.GetProjectionMatrix(eye, near, far);
+    }
+
+    pub const RawProjection = struct {
+        left: f32,
+        right: f32,
+        top: f32,
+        bottom: f32,
+    };
+    pub fn getProjectionRaw(system: System, eye: Eye) RawProjection {
+        var raw_projection: RawProjection = .{};
+        system.GetProjectionRaw(eye, &raw_projection.left, &raw_projection.right, &raw_projection.top, &raw_projection.bottom);
+        return raw_projection;
+    }
+
+    pub fn computeDistortion(system: System, eye: Eye, u: f32, v: f32) ?DistortionCoordinates {
+        var distortion_coordinates: DistortionCoordinates = .{};
+        if (system.ComputeDistortion(eye, u, v, &distortion_coordinates)) {
+            return distortion_coordinates;
+        } else {
+            return null;
+        }
+    }
+
+    pub fn getEyeToHeadTransform(system: System, eye: Eye) Matrix34 {
+        return system.GetEyeToHeadTransform(eye);
+    }
+
+    pub const VSyncTiming = struct {
+        seconds_since_last_vsync: f32,
+        frame_counter: u64,
+    };
+
+    pub fn getTimeSinceLastVsync(system: System) ?VSyncTiming {
+        var timing: VSyncTiming = .{};
+        if (system.GetTimeSinceLastVsync(&timing.seconds_since_last_vsync, &timing.frame_counter)) {
+            return timing;
+        } else {
+            return null;
+        }
+    }
+
+    pub fn getD3D9AdapterIndex(system: System) ?i32 {
+        const adapter_index: i32 = system.GetD3D9AdapterIndex();
+        if (adapter_index == -1) {
+            return null;
+        } else {
+            return adapter_index;
+        }
+    }
+
+    pub fn getDXGIOutputInfo(system: System) ?i32 {
+        var adapter_index: i32 = -1;
+        system.GetDXGIOutputInfo(&adapter_index);
+        if (adapter_index == -1) {
+            return null;
+        } else {
+            return adapter_index;
+        }
+    }
+
+    pub const max_tracked_device_count: usize = 64;
+    pub fn getDeviceToAbsoluteTrackingPose(system: System, origin: TrackingUniverseOrigin, predicted_seconds_to_photons_from_now: f32) []TrackedDevicePose {
+        var tracked_device_poses: [max_tracked_device_count]TrackedDevicePose = undefined;
+        var count: usize = 0;
+        system.GetDeviceToAbsoluteTrackingPose(origin, predicted_seconds_to_photons_from_now, &tracked_device_poses, &count);
+        return tracked_device_poses[0..count];
+    }
+
+    pub fn getSeatedZeroPoseToStandingAbsoluteTrackingPose(system: System) Matrix34 {
+        return system.GetSeatedZeroPoseToStandingAbsoluteTrackingPose();
+    }
+
+    pub fn getTrackedDeviceClass(system: System, device_index: TrackedDeviceIndex) TrackedDeviceClass {
+        return system.GetTrackedDeviceClass(device_index);
+    }
+
+    pub fn isTrackedDeviceConnected(system: System, device_index: TrackedDeviceIndex) bool {
+        return system.IsTrackedDeviceConnected(device_index);
+    }
+
+    pub fn getTrackedDeviceProperty(comptime T: type, system: System, device_index: TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError!T {
+        var property_error: TrackedPropertyErrorCode = undefined;
+        const result = switch (T) {
+            bool => system.GetBoolTrackedDeviceProperty(device_index, property, &property_error),
+            f32 => system.GetFloatTrackedDeviceProperty(device_index, property, &property_error),
+            i32 => system.GetInt32TrackedDeviceProperty(device_index, property, &property_error),
+            u64 => system.GetUnit64TrackedDeviceProperty(device_index, property, &property_error),
+            Matrix34 => system.GetMatrix34TrackedDeviceProperty(device_index, property, &property_error),
+            else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
+        };
+        try property_error.maybe();
+        return result;
+    }
+
+    pub const PropertyTypeTagCode = enum(i32) {
+        invalid = 0,
+        float = 1,
+        int32 = 2,
+        uint64 = 3,
+        bool = 4,
+        string = 5,
+        @"error" = 6,
+        double = 7,
+        matrix34 = 20,
+        matrix44 = 21,
+        vector3 = 22,
+        vector4 = 23,
+        vector2 = 24,
+        quad = 25,
+        hidden_area = 30,
+        action = 32,
+        input_value = 33,
+        wildcard = 34,
+        haptic_vibration = 35,
+        skeleton = 36,
+        spatial_anchor_pose = 40,
+        json = 41,
+        active_action_set = 42,
+
+        pub fn fromType(comptime T: type) PropertyTypeTagCode {
+            return switch (T) {
+                f32 => .float,
+                i32 => .int32,
+                u64 => .uint64,
+                bool => .bool,
+                f64 => .double,
+                Matrix34 => .matrix34,
+                Matrix44 => .matrix44,
+                Vector3 => .vector3,
+                Vector4 => .vector4,
+                Vector2 => .vector2,
+                Quad => .quad,
+                else => @compileError("unsupported type " ++ @typeName(T)),
+            };
+        }
+    };
+
+    pub fn allocArrayTrackedDeviceProperty(system: System, comptime T: type, allocator: std.mem.Allocator, buffer_size: usize, device_index: TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]T {
+        var buffer = try allocator.alloc(u8, buffer_size);
+        var property_error: TrackedPropertyErrorCode = undefined;
+        const length = try system.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), buffer, buffer_size, &property_error);
+        try property_error.maybe();
+        return @ptrCast(buffer[0..length]);
+    }
+
+    pub fn allocStringTrackedDeviceProperty(system: System, allocator: std.mem.Allocator, buffer_size: usize, device_index: TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]u8 {
+        var buffer = try allocator.alloc(u8, buffer_size);
+        var property_error: TrackedPropertyErrorCode = undefined;
+        const length = try system.GetStringTrackedDeviceProperty(device_index, property, buffer, buffer_size, &property_error);
+        try property_error.maybe();
+        return buffer[0..length];
+    }
+
+    pub fn getPropErrorNameFromEnum(system: System, property_error: TrackedPropertyErrorCode) []const u8 {
+        return std.mem.span(system.GetPropErrorNameFromEnum(property_error));
+    }
+
+    pub fn pollNextEvent(system: System) ?Event {
+        var event: Event = undefined;
+        if (system.PollNextEvent(&event, @sizeOf(Event))) {
+            return event;
+        } else {
+            return null;
+        }
+    }
+    pub const EventWithPose = struct {
+        event: Event,
+        pose: TrackedDevicePose,
+    };
+
+    pub fn pollNextEventWithPose(system: System, origin: TrackingUniverseOrigin) ?EventWithPose {
+        var event: Event = undefined;
+        var pose: TrackedDevicePose = undefined;
+        if (system.PollNextEventWithPose(origin, &event, @sizeOf(Event), &pose)) {
+            return .{
+                .event = event,
+                .pose = pose,
+            };
+        } else {
+            return null;
+        }
+    }
+
+    pub fn getEventTypeNameFromEnum(system: System, event_type: EventType) []const u8 {
+        return std.mem.span(system.GetEventTypeNameFromEnum(event_type));
+    }
+
+    pub fn getHiddenAreaMesh(system: System, eye: Eye, mesh_type: HiddenAreaMeshType) []const Vector2 {
+        const mesh = system.GetHiddenAreaMesh(eye, mesh_type);
+        return if (mesh.triangle_count == 0)
+            &[_]Vector2{}
+        else
+            mesh.vertex_data[0..mesh.triangle_count];
+    }
+
+    pub fn triggerHapticPulse(system: System, device_index: TrackedDeviceIndex, axis_id: u32, duration_microseconds: c_ushort) void {
+        system.TriggerHapticPulse(device_index, axis_id, duration_microseconds);
+    }
+
+    pub fn getControllerState(system: System, device_index: TrackedDeviceIndex) ?ControllerState {
+        var controller_state: ControllerState = undefined;
+        if (system.GetControllerState(device_index, &controller_state, @sizeOf(ControllerState))) {
+            return controller_state;
+        } else {
+            return null;
+        }
+    }
+
+    pub const ControllerStateWithPose = struct {
+        controller_state: ControllerState,
+        pose: TrackedDevicePose,
+    };
+    pub fn getControllerStateWithPose(system: System, origin: TrackingUniverseOrigin, device_index: TrackedDeviceIndex) ?ControllerStateWithPose {
+        var controller_state: ControllerState = undefined;
+        var pose: TrackedDevicePose = undefined;
+        if (system.GetControllerStateWithPose(origin, device_index, &controller_state, @sizeOf(ControllerState), &pose)) {
+            return .{
+                .controller_state = controller_state,
+                .pose = pose,
+            };
+        } else {
+            return null;
+        }
+    }
+    pub fn getButtonIdNameFromEnum(system: System, button_id: ButtonId) []u8 {
+        return std.mem.span(system.GetButtonIdNameFromEnum(button_id));
+    }
+    pub fn getControllerAxisTypeNameFromEnum(system: System, axis_type: ControllerAxisType) [*c]u8 {
+        return std.mem.span(system.GetControllerAxisTypeNameFromEnum(axis_type));
+    }
+    pub fn isInputAvailable(system: System) bool {
+        return system.IsInputAvailable();
+    }
+    pub fn isSteamVRDrawingControllers(system: System) bool {
+        return system.IsSteamVRDrawingControllers();
+    }
+    pub fn shouldApplicationPause(system: System) bool {
+        return system.ShouldApplicationPause();
+    }
+    pub fn shouldApplicationReduceRenderingWork(system: System) bool {
+        return system.ShouldApplicationReduceRenderingWork();
+    }
+    pub fn performFirmwareUpdate(system: System, device_index: TrackedDeviceIndex) FirmwareError!void {
+        const firmware_error = system.PerformFirmwareUpdate(device_index);
+        try firmware_error.maybe();
+    }
+    pub fn acknowledgeQuitExiting(system: System) void {
+        system.AcknowledgeQuit_Exiting();
+    }
+    pub fn allocAppContainerFilePaths(system: System, allocator: std.mem.Allocator, buffer_size: usize) ![]u8 {
+        var buffer = try allocator.alloc(u8, buffer_size);
+        const length = system.GetAppContainerFilePaths(&buffer, buffer_size);
+        return buffer[0..length];
     }
 
     pub fn getRuntimeVersion(system: System) [:0]const u8 {
