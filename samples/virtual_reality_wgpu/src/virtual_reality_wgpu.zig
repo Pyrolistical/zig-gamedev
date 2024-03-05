@@ -302,9 +302,13 @@ const DisplayWindow = struct {
 
 const OpenVRWindow = struct {
     init_error: OpenVR.InitError = OpenVR.InitError.None,
-    system_init_error: OpenVR.InitError = OpenVR.InitError.None,
     openvr: ?OpenVR = null,
+
+    system_init_error: OpenVR.InitError = OpenVR.InitError.None,
     system: ?OpenVR.System = null,
+
+    chaperone_init_error: OpenVR.InitError = OpenVR.InitError.None,
+    chaperone: ?OpenVR.Chaperone = null,
 
     pub fn init() OpenVRWindow {
         return .{};
@@ -316,6 +320,7 @@ const OpenVRWindow = struct {
         }
         self.openvr = null;
         self.system = null;
+        self.chaperone = null;
     }
 
     fn show(self: *OpenVRWindow) void {
@@ -329,6 +334,7 @@ const OpenVRWindow = struct {
                     openvr.deinit();
                     self.openvr = null;
                     self.system = null;
+                    self.chaperone = null;
                     return;
                 }
                 {
@@ -362,6 +368,22 @@ const OpenVRWindow = struct {
                         };
                     }
                     zgui.text("init error: {!}", .{self.system_init_error});
+                }
+                zgui.separatorText("Chaperone");
+                if (self.chaperone) |chaperone| {
+                    zgui.beginDisabled(.{ .disabled = true });
+                    defer zgui.endDisabled();
+
+                    _ = zgui.inputText("calibration state", .{ .buf = @constCast(@tagName(chaperone.getCalibrationState())) });
+                } else {
+                    if (zgui.button("init", .{})) {
+                        self.chaperone_init_error = OpenVR.InitError.None;
+                        self.chaperone = openvr.chaperone() catch |err| chaperone: {
+                            self.chaperone_init_error = err;
+                            break :chaperone null;
+                        };
+                    }
+                    zgui.text("init error: {!}", .{self.chaperone_init_error});
                 }
             } else {
                 if (zgui.button("init", .{})) {

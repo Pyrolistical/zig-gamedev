@@ -54,5 +54,10 @@ pub fn system(_: Self) common.InitError!System {
     return try System.init();
 }
 
+pub fn chaperone(_: Self) common.InitError!Chaperone {
+    return try Chaperone.init();
+}
+
 pub usingnamespace @import("common.zig");
 pub const System = @import("system.zig");
+pub const Chaperone = @import("chaperone.zig");

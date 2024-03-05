@@ -45,32 +45,20 @@ pub const TextureType = enum(i32) {
     reserved = 7,
 };
 
-pub const TrackingUniverseOrigin = enum(i32) {
-    seated = 0,
-    standing = 1,
-    raw_and_uncalibrated = 2,
-};
 
 pub const TrackedDevicePose = extern struct {
     device_to_absolute_tracking: Matrix34,
-    velocity: Vector3,
-    angular_velocity: Vector3,
+    velocity: common.Vector3,
+    angular_velocity: common.Vector3,
     tracking_result: TrackingResult,
     pose_is_valid: bool,
     device_is_connected: bool,
-};
-
-pub const Vector3 = extern struct {
-    v: [3]f32,
 };
 
 pub const Vector4 = extern struct {
     v: [4]f32,
 };
 
-pub const Quad = extern struct {
-    corners: [4]Vector3,
-};
 pub const TrackingResult = enum(i32) {
     uninitialized = 1,
     calibrating_in_progress = 100,
@@ -933,7 +921,7 @@ pub fn getDXGIOutputInfo(self: Self) ?i32 {
 }
 
 pub const max_tracked_device_count: usize = 64;
-pub fn getDeviceToAbsoluteTrackingPose(self: Self, origin: TrackingUniverseOrigin, predicted_seconds_to_photons_from_now: f32) []TrackedDevicePose {
+pub fn getDeviceToAbsoluteTrackingPose(self: Self, origin: common.TrackingUniverseOrigin, predicted_seconds_to_photons_from_now: f32) []TrackedDevicePose {
     var tracked_device_poses: [max_tracked_device_count]TrackedDevicePose = undefined;
     var count: usize = 0;
     self.function_table.GetDeviceToAbsoluteTrackingPose(origin, predicted_seconds_to_photons_from_now, &tracked_device_poses, &count);
@@ -1000,10 +988,10 @@ pub const PropertyTypeTagCode = enum(i32) {
             f64 => .double,
             Matrix34 => .matrix34,
             Matrix44 => .matrix44,
-            Vector3 => .vector3,
+            common.Vector3 => .vector3,
             Vector4 => .vector4,
             Vector2 => .vector2,
-            Quad => .quad,
+            common.Quad => .quad,
             else => @compileError("unsupported type " ++ @typeName(T)),
         };
     }
@@ -1042,7 +1030,7 @@ pub const EventWithPose = struct {
     pose: TrackedDevicePose,
 };
 
-pub fn pollNextEventWithPose(self: Self, origin: TrackingUniverseOrigin) ?EventWithPose {
+pub fn pollNextEventWithPose(self: Self, origin: common.TrackingUniverseOrigin) ?EventWithPose {
     var event: Event = undefined;
     var pose: TrackedDevicePose = undefined;
     if (self.function_table.PollNextEventWithPose(origin, &event, @sizeOf(Event), &pose)) {
@@ -1084,7 +1072,7 @@ pub const ControllerStateWithPose = struct {
     controller_state: ControllerState,
     pose: TrackedDevicePose,
 };
-pub fn getControllerStateWithPose(self: Self, origin: TrackingUniverseOrigin, device_index: TrackedDeviceIndex) ?ControllerStateWithPose {
+pub fn getControllerStateWithPose(self: Self, origin: common.TrackingUniverseOrigin, device_index: TrackedDeviceIndex) ?ControllerStateWithPose {
     var controller_state: ControllerState = undefined;
     var pose: TrackedDevicePose = undefined;
     if (self.function_table.GetControllerStateWithPose(origin, device_index, &controller_state, @sizeOf(ControllerState), &pose)) {
@@ -1143,7 +1131,7 @@ pub const FunctionTable = extern struct {
     GetOutputDevice: *const fn (*u64, TextureType, ?*VkInstance) callconv(.C) void,
     IsDisplayOnDesktop: *const fn () callconv(.C) bool,
     SetDisplayVisibility: *const fn (bool) callconv(.C) bool,
-    GetDeviceToAbsoluteTrackingPose: *const fn (TrackingUniverseOrigin, f32, *TrackedDevicePose, u32) callconv(.C) void,
+    GetDeviceToAbsoluteTrackingPose: *const fn (common.TrackingUniverseOrigin, f32, *TrackedDevicePose, u32) callconv(.C) void,
     GetSeatedZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) Matrix34,
     GetRawZeroPoseToStandingAbsoluteTrackingPose: *const fn () callconv(.C) Matrix34,
     GetSortedTrackedDeviceIndicesOfClass: *const fn (TrackedDeviceClass, *TrackedDeviceIndex, u32, TrackedDeviceIndex) callconv(.C) u32,
@@ -1162,11 +1150,11 @@ pub const FunctionTable = extern struct {
     GetStringTrackedDeviceProperty: *const fn (TrackedDeviceIndex, TrackedDeviceProperty, *u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
     GetPropErrorNameFromEnum: *const fn (TrackedPropertyErrorCode) callconv(.C) [*c]u8,
     PollNextEvent: *const fn (*Event, u32) callconv(.C) bool,
-    PollNextEventWithPose: *const fn (TrackingUniverseOrigin, *Event, u32, *TrackedDevicePose) callconv(.C) bool,
+    PollNextEventWithPose: *const fn (common.TrackingUniverseOrigin, *Event, u32, *TrackedDevicePose) callconv(.C) bool,
     GetEventTypeNameFromEnum: *const fn (EventType) callconv(.C) [*c]u8,
     GetHiddenAreaMesh: *const fn (Eye, HiddenAreaMeshType) callconv(.C) HiddenAreaMesh,
     GetControllerState: *const fn (TrackedDeviceIndex, *ControllerState, u32) callconv(.C) bool,
-    GetControllerStateWithPose: *const fn (TrackingUniverseOrigin, TrackedDeviceIndex, *ControllerState, u32, *TrackedDevicePose) callconv(.C) bool,
+    GetControllerStateWithPose: *const fn (common.TrackingUniverseOrigin, TrackedDeviceIndex, *ControllerState, u32, *TrackedDevicePose) callconv(.C) bool,
     TriggerHapticPulse: *const fn (TrackedDeviceIndex, u32, c_ushort) callconv(.C) void,
     GetButtonIdNameFromEnum: *const fn (ButtonId) callconv(.C) [*c]u8,
     GetControllerAxisTypeNameFromEnum: *const fn (ControllerAxisType) callconv(.C) [*c]u8,

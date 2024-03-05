@@ -686,3 +686,17 @@ pub fn getFunctionTable(comptime T: type, comptime version: []const u8) InitErro
 }
 
 extern fn VR_GetGenericInterface([*c]const u8, *InitErrorCode) callconv(.C) *isize;
+
+pub const Quad = extern struct {
+    corners: [4]Vector3,
+};
+
+pub const Vector3 = extern struct {
+    v: [3]f32,
+};
+
+pub const TrackingUniverseOrigin = enum(i32) {
+    seated = 0,
+    standing = 1,
+    raw_and_uncalibrated = 2,
+};
