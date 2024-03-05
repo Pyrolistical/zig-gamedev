@@ -676,4 +676,13 @@ test "init error have english descriptions" {
     try std.testing.expectEqualStrings("No Error (0)", InitErrorCode.none.asEnglishDescription());
 }
 
-pub extern fn VR_GetGenericInterface([*c]const u8, *InitErrorCode) callconv(.C) *isize;
+pub fn getFunctionTable(comptime T: type, comptime version: []const u8) InitError!*T {
+    const interface_name: [*c]const u8 = "FnTable:" ++ version;
+
+    var init_error: InitErrorCode = .none;
+    const function_table: *T = @ptrCast(VR_GetGenericInterface(interface_name, &init_error));
+    try init_error.maybe();
+    return function_table;
+}
+
+extern fn VR_GetGenericInterface([*c]const u8, *InitErrorCode) callconv(.C) *isize;

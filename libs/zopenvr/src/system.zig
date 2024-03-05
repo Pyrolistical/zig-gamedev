@@ -855,14 +855,10 @@ pub const EventType = enum(i32) {
     vendor_specific_reserved_end = 19999,
 };
 
-const version: [*c]const u8 = "IVRSystem_022";
-const interface_name: [*c]const u8 = "FnTable:IVRSystem_022";
+const version = "IVRSystem_022";
 pub fn init() common.InitError!Self {
-    var init_error: common.InitErrorCode = .none;
-    const function_table: *FunctionTable = @ptrCast(common.VR_GetGenericInterface(interface_name, &init_error));
-    try init_error.maybe();
     return .{
-        .function_table = function_table,
+        .function_table = try common.getFunctionTable(FunctionTable, version),
     };
 }
 
