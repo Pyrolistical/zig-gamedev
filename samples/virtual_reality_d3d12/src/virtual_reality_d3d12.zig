@@ -7,7 +7,7 @@ const wgpu = zgpu.wgpu;
 const zgui = @import("zgui");
 
 const content_dir = @import("build_options").content_dir;
-const window_title = "zig-gamedev: virtual reality (wgpu)";
+const window_title = "zig-gamedev: virtual reality (d3d12)";
 
 const Surface = struct {
     window: *zglfw.Window,

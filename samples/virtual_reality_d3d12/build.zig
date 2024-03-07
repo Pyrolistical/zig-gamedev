@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Options = @import("../../build.zig").Options;
 
-const demo_name = "virtual_reality_wgpu";
+const demo_name = "virtual_reality_d3d12";
 const content_dir = demo_name ++ "_content/";
 
 pub fn build(b: *std.Build, options: Options) *std.Build.Step.Compile {
