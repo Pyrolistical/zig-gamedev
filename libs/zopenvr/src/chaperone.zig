@@ -56,20 +56,19 @@ pub fn reloadInfo(self: Self) void {
     self.function_table.ReloadInfo();
 }
 
-pub const Color = extern struct {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-};
-pub fn setSceneColor(self: Self, scene_color: Color) void {
+pub fn setSceneColor(self: Self, scene_color: common.Color) void {
     self.function_table.SetSceneColor(scene_color);
 }
 
-pub fn getBoundsColor(self: Self, output_colors: []Color, collision_bounds_fade_distance: f32) Color {
-    var output_camera_color: Color = undefined;
-    self.function_table.GetBoundsColor(output_colors.ptr, output_colors.len, collision_bounds_fade_distance, &output_camera_color);
-    return output_camera_color;
+pub const BoundsColor = struct {
+    bound_colors: []common.Color,
+    camera_color: common.Color,
+};
+pub fn allocBoundsColor(self: Self, allocator: std.mem.Allocator, collision_bounds_fade_distance: f32, bound_colors_count: usize) !BoundsColor {
+    var bounds_color: BoundsColor = undefined;
+    bounds_color.bound_color = try allocator.alloc(common.Color, bound_colors_count);
+    self.function_table.GetBoundsColor(bounds_color.bound_colors.ptr, bounds_color.bound_colors.len, collision_bounds_fade_distance, &bounds_color.camera_color);
+    return bounds_color;
 }
 
 pub fn areBoundsVisible(self: Self) bool {
@@ -89,8 +88,8 @@ pub const FunctionTable = extern struct {
     GetPlayAreaSize: *const fn (*f32, *f32) callconv(.C) bool,
     GetPlayAreaRect: *const fn (*common.Quad) callconv(.C) bool,
     ReloadInfo: *const fn () callconv(.C) void,
-    SetSceneColor: *const fn (Color) callconv(.C) void,
-    GetBoundsColor: *const fn ([*c]Color, c_int, f32, *Color) callconv(.C) void,
+    SetSceneColor: *const fn (common.Color) callconv(.C) void,
+    GetBoundsColor: *const fn ([*c]common.Color, c_int, f32, *common.Color) callconv(.C) void,
     AreBoundsVisible: *const fn () callconv(.C) bool,
     ForceBoundsVisible: *const fn (bool) callconv(.C) void,
     ResetZeroPose: *const fn (common.TrackingUniverseOrigin) callconv(.C) void,

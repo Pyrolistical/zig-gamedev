@@ -1,0 +1,479 @@
+const std = @import("std");
+
+const common = @import("common.zig");
+
+function_table: *FunctionTable,
+
+const Self = @This();
+
+const version = "IVRCompositor_028";
+pub fn init() common.InitError!Self {
+    return .{
+        .function_table = try common.getFunctionTable(FunctionTable, version),
+    };
+}
+
+pub fn setTrackingSpace(self: Self, origin: common.TrackingUniverseOrigin) void {
+    self.function_table.SetTrackingSpace(origin);
+}
+
+pub fn getTrackingSpace(self: Self) common.TrackingUniverseOrigin {
+    return self.function_table.GetTrackingSpace();
+}
+
+pub const CompositorError = error{
+    None,
+    RequestFailed,
+    IncompatibleVersion,
+    DoNotHaveFocus,
+    InvalidTexture,
+    IsNotSceneApplication,
+    TextureIsOnWrongDevice,
+    TextureUsesUnsupportedFormat,
+    SharedTexturesNotSupported,
+    IndexOutOfRange,
+    AlreadySubmitted,
+    InvalidBounds,
+    AlreadySet,
+};
+pub const CompositorErrorCode = enum(i32) {
+    none = 0,
+    request_failed = 1,
+    incompatible_version = 100,
+    do_not_have_focus = 101,
+    invalid_texture = 102,
+    is_not_scene_application = 103,
+    texture_is_on_wrong_device = 104,
+    texture_uses_unsupported_format = 105,
+    shared_textures_not_supported = 106,
+    index_out_of_range = 107,
+    already_submitted = 108,
+    invalid_bounds = 109,
+    already_set = 110,
+    fn maybe(compositor_error: CompositorErrorCode) CompositorError!void {
+        return switch (compositor_error) {
+            .none => {},
+            .request_failed => CompositorError.RequestFailed,
+            .incompatible_version => CompositorError.IncompatibleVersion,
+            .do_not_have_focus => CompositorError.DoNotHaveFocus,
+            .invalid_texture => CompositorError.InvalidTexture,
+            .is_not_scene_application => CompositorError.IsNotSceneApplication,
+            .texture_is_on_wrong_device => CompositorError.TextureIsOnWrongDevice,
+            .texture_uses_unsupported_format => CompositorError.TextureUsesUnsupportedFormat,
+            .shared_textures_not_supported => CompositorError.SharedTexturesNotSupported,
+            .index_out_of_range => CompositorError.IndexOutOfRange,
+            .already_submitted => CompositorError.AlreadySubmitted,
+            .invalid_bounds => CompositorError.InvalidBounds,
+            .already_set => CompositorError.AlreadySet,
+        };
+    }
+};
+
+pub fn waitGetPoses(self: Self) CompositorError![]common.TrackedDevicePose {
+    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
+    var count: usize = 0;
+    const compositor_error = self.function_table.WaitGetPoses(&tracked_device_poses, &count);
+    try compositor_error.maybe();
+    return tracked_device_poses[0..count];
+}
+
+pub fn getLastPoses(self: Self) CompositorError![]common.TrackedDevicePose {
+    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
+    var count: usize = 0;
+    const compositor_error = self.function_table.GetLastPoses(&tracked_device_poses, &count);
+    try compositor_error.maybe();
+    return tracked_device_poses[0..count];
+}
+
+pub fn getLastPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError![]common.TrackedDevicePose {
+    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
+    var count: usize = 0;
+    const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &tracked_device_poses, &count);
+    try compositor_error.maybe();
+    return tracked_device_poses[0..count];
+}
+
+pub const SubmitFlags = enum(i32) {
+    default = 0,
+    lens_distortion_already_applied = 1,
+    gl_render_buffer = 2,
+    reserved = 4,
+    texture_with_pose = 8,
+    texture_with_depth = 16,
+    frame_discontinuty = 32,
+    vulkan_texture_with_array_data = 64,
+    gl_array_texture = 128,
+    is_egl = 256,
+    reserved2 = 32768,
+    reserved3 = 65536,
+};
+
+pub const ColorSpace = enum(i32) {
+    auto = 0,
+    gamma = 1,
+    linear = 2,
+};
+pub const Texture = extern struct {
+    handle: *anyopaque,
+    texture_type: common.TextureType,
+    color_space: ColorSpace,
+};
+pub const TextureBounds = extern struct {
+    u_min: f32,
+    v_min: f32,
+    u_max: f32,
+    v_max: f32,
+};
+
+pub fn submit(self: Self, eye: common.Eye, texture: *Texture, texture_bounds: ?TextureBounds, flags: SubmitFlags) CompositorError!void {
+    const compositor_error = self.function_table.Submit(eye, texture, texture_bounds, flags);
+    try compositor_error.maybe();
+}
+
+pub fn submitWithArrayIndex(self: Self, eye: common.Eye, texture: *Texture, index: u32, texture_bounds: ?TextureBounds, flags: SubmitFlags) CompositorError!void {
+    const compositor_error = self.function_table.SubmitWithArrayIndex(eye, texture, index, texture_bounds, flags);
+    try compositor_error.maybe();
+}
+
+pub fn clearLastSubmittedFrame(self: Self) void {
+    self.function_table.ClearLastSubmittedFrame();
+}
+
+pub fn postPresentHandoff(self: Self) void {
+    self.function_table.PostPresentHandoff();
+}
+
+pub const FrameTiming = extern struct {
+    size: u32,
+    frame_index: u32,
+    num_frame_presents: u32,
+    num_mis_presented: u32,
+    num_dropped_frames: u32,
+    reprojection_flags: u32,
+    system_time_in_seconds: f64,
+    pre_submit_gpu_ms: f32,
+    post_submit_gpu_ms: f32,
+    total_render_gpu_ms: f32,
+    compositor_render_gpu_ms: f32,
+    compositor_render_cpu_ms: f32,
+    compositor_idle_cpu_ms: f32,
+    client_frame_interval_ms: f32,
+    present_call_cpu_ms: f32,
+    wait_for_present_cpu_ms: f32,
+    submit_frame_ms: f32,
+    wait_get_poses_called_ms: f32,
+    new_poses_ready_ms: f32,
+    new_frame_ready_ms: f32,
+    compositor_update_start_ms: f32,
+    compositor_update_end_ms: f32,
+    compositor_render_start_ms: f32,
+    pose: common.TrackedDevicePose,
+    num_v_syncs_ready_for_use: u32,
+    num_v_syncs_to_first_view: u32,
+};
+
+pub fn getFrameTiming(self: Self, frames_ago: u32) ?FrameTiming {
+    var frame_timing: FrameTiming = undefined;
+    frame_timing.size = @sizeOf(FrameTiming);
+    if (self.function_table.GetFrameTiming(&frame_timing, frames_ago)) {
+        return frame_timing;
+    } else {
+        return null;
+    }
+}
+
+pub fn allocFrameTimings(self: Self, allocator: std.mem.Allocator, frames: usize) ![]FrameTiming {
+    var frame_timings: []FrameTiming = try allocator.alloc(FrameTiming, frames);
+    for (frame_timings) |*frame_timing| {
+        frame_timing.size = @sizeOf(FrameTiming);
+    }
+    const length = self.function_table.GetFrameTimings(frame_timings.ptr, frame_timings.len);
+    return frame_timings[0..length];
+}
+
+pub fn getFrameTimeRemaining(self: Self) f32 {
+    return self.function_table.GetFrameTimeRemaining();
+}
+
+pub const shared_double = f64;
+pub const CumulativeStats = extern struct {
+    pid: u32,
+    num_frame_presents: u32,
+    num_dropped_frames: u32,
+    num_reprojected_frames: u32,
+    num_frame_presents_on_startup: u32,
+    num_dropped_frames_on_startup: u32,
+    num_reprojected_frames_on_startup: u32,
+    num_loading: u32,
+    num_frame_presents_loading: u32,
+    num_dropped_frames_loading: u32,
+    num_reprojected_frames_loading: u32,
+    num_timed_out: u32,
+    num_frame_presents_timed_out: u32,
+    num_dropped_frames_timed_out: u32,
+    num_reprojected_frames_timed_out: u32,
+    num_frame_submits: u32,
+    sum_compositor_cpu_time_ms: shared_double,
+    sum_compositor_gpu_time_ms: shared_double,
+    sum_target_frame_times: shared_double,
+    sum_application_cpu_time_ms: shared_double,
+    sum_application_gpu_time_ms: shared_double,
+    num_frames_with_depth: u32,
+};
+
+pub fn getCumulativeStats(self: Self) CumulativeStats {
+    var cummulative_stats: CumulativeStats = undefined;
+    self.function_table.GetCumulativeStats(&cummulative_stats, @sizeOf(CumulativeStats));
+    return cummulative_stats;
+}
+
+pub fn fadeToColor(self: Self, seconds: f32, red: f32, green: f32, blue: f32, alpha: f32, background: bool) void {
+    self.function_table.FadeToColor(seconds, red, green, blue, alpha, background);
+}
+
+pub fn getCurrentFadeColor(self: Self, background: bool) common.Color {
+    return self.function_table.GetCurrentFadeColor(background);
+}
+
+pub fn fadeGrid(self: Self, seconds: f32, background: bool) void {
+    self.function_table.FadeGrid(seconds, background);
+}
+
+pub fn getCurrentGridAlpha(self: Self) f32 {
+    return self.function_table.GetCurrentGridAlpha();
+}
+
+pub fn setSkyboxOverride(self: Self, textures: []common.Texture) CompositorError!void {
+    const compositor_error = self.function_table.SetSkyboxOverride(textures.ptr, textures.len);
+    try compositor_error.maybe();
+}
+
+pub fn clearSkyboxOverride(self: Self) void {
+    self.function_table.ClearSkyboxOverride();
+}
+
+pub fn compositorBringToFront(self: Self) void {
+    self.function_table.CompositorBringToFront();
+}
+
+pub fn compositorGoToBack(self: Self) void {
+    self.function_table.CompositorGoToBack();
+}
+
+pub fn compositorQuit(self: Self) void {
+    self.function_table.CompositorQuit();
+}
+
+pub fn isFullscreen(self: Self) bool {
+    return self.function_table.IsFullscreen();
+}
+
+pub fn getCurrentSceneFocusProcess(self: Self) u32 {
+    return self.function_table.GetCurrentSceneFocusProcess();
+}
+
+pub fn getLastFrameRenderer(self: Self) u32 {
+    return self.function_table.GetLastFrameRenderer();
+}
+
+pub fn canRenderScene(self: Self) bool {
+    return self.function_table.CanRenderScene();
+}
+
+pub fn showMirrorWindow(self: Self) void {
+    self.function_table.ShowMirrorWindow();
+}
+
+pub fn hideMirrorWindow(self: Self) void {
+    self.function_table.HideMirrorWindow();
+}
+
+pub fn isMirrorWindowVisible(self: Self) bool {
+    return self.function_table.IsMirrorWindowVisible();
+}
+
+pub fn compositorDumpImages(self: Self) void {
+    self.function_table.CompositorDumpImages();
+}
+
+pub fn shouldAppRenderWithLowResources(self: Self) bool {
+    return self.function_table.ShouldAppRenderWithLowResources();
+}
+
+pub fn forceInterleavedReprojectionOn(self: Self, override: bool) void {
+    return self.function_table.ForceInterleavedReprojectionOn(override);
+}
+
+pub fn forceReconnectProcess(self: Self) void {
+    self.function_table.ForceReconnectProcess();
+}
+
+pub fn suspendRendering(self: Self, suspend_rendering: bool) void {
+    self.function_table.SuspendRendering(suspend_rendering);
+}
+
+//pub  fn getMirrorTextureD3D11(self: Self, eye: common.Eye, d3d11_device_or_resource: *anyopaque) CompositorError!?*anyopaque {
+//    self.function_table.GetMirrorTextureD3D11();
+//}
+
+//pub  fn releaseMirrorTextureD3D11(self: Self, d3d11_shader_resource_view: *anyopaque) void {
+//    self.function_table.ReleaseMirrorTextureD3D11();
+//}
+
+//pub  fn getMirrorTextureGL(self: Self, eye: common.Eye, texture_id: *glUInt) CompositorError!GlSharedTextureHandle {
+//    self.function_table.GetMirrorTextureGL();
+//}
+
+//pub  fn releaseSharedGLTexture(self: Self, texture_id: glUInt, shared_texture_handle: GlSharedTextureHandle) bool {
+//    self.function_table.ReleaseSharedGLTexture();
+//}
+
+//pub  fn lockGLSharedTextureForAccess(self: Self shared_texture_handle: GlSharedTextureHandle) void {
+//    self.function_table.LockGLSharedTextureForAccess();
+//}
+
+//pub  fn unlockGLSharedTextureForAccess(self: Self shared_texture_handle: GlSharedTextureHandle) void {
+//    self.function_table.UnlockGLSharedTextureForAccess();
+//}
+
+//pub fn allocVulkanInstanceExtensionsRequired(self: Self, allocator: std.mem.Allocator) ![][]u8 {
+//    self.function_table.GetVulkanInstanceExtensionsRequired(;
+//}
+
+//pub  fn getVulkanDeviceExtensionsRequired(self: Self, *VkPhysicalDevice, allocator: std.mem.Allocator) ![][]u8 {
+//    self.function_table.GetVulkanDeviceExtensionsRequired();
+//}
+
+pub const TimingMode = enum(i32) {
+    implicit = 0,
+    explicit_runtime_performs_post_present_handoff = 1,
+    explicit_application_performs_post_present_handoff = 2,
+};
+pub fn setExplicitTimingMode(self: Self, timing_mode: TimingMode) void {
+    self.function_table.SetExplicitTimingMode(timing_mode);
+}
+
+pub fn submitExplicitTimingData(self: Self) CompositorError!void {
+    const compositor_error = self.function_table.SubmitExplicitTimingData();
+    try compositor_error.maybe();
+}
+
+pub fn isMotionSmoothingEnabled(self: Self) bool {
+    return self.function_table.IsMotionSmoothingEnabled();
+}
+
+pub fn isMotionSmoothingSupported(self: Self) bool {
+    return self.function_table.IsMotionSmoothingSupported();
+}
+
+pub fn isCurrentSceneFocusAppLoading(self: Self) bool {
+    return self.function_table.IsCurrentSceneFocusAppLoading();
+}
+
+pub const StageRenderSettings = extern struct {
+    primary_color: common.Color,
+    secondary_color: common.Color,
+    vignette_inner_radius: f32,
+    vignette_outer_radius: f32,
+    fresnel_strength: f32,
+    backface_culling: bool,
+    greyscale: bool,
+    wireframe: bool,
+};
+pub fn setStageOverrideAsync(self: Self, render_model_path: []const u8, transform: common.Matrix34, stage_render_settings: StageRenderSettings) CompositorError!void {
+    const compositor_error = self.function_table.SetStageOverride_Async(render_model_path, &transform, &stage_render_settings, @sizeOf(StageRenderSettings));
+    try compositor_error.maybe();
+}
+
+pub fn clearStageOverride(self: Self) void {
+    self.function_table.ClearStageOverride();
+}
+
+pub const BenchmarkResults = extern struct {
+    mega_pixels_per_second: f32,
+    hmd_recommended_mega_pixels_per_second: f32,
+};
+pub fn getCompositorBenchmarkResults(self: Self) ?BenchmarkResults {
+    var benchmark_results: BenchmarkResults = undefined;
+    if (self.function_table.GetCompositorBenchmarkResults(&benchmark_results)) {
+        return benchmark_results;
+    } else {
+        return null;
+    }
+}
+
+pub const PosePredictionIDs = struct { render_pose_prediction_id: u32, game_pose_prediction_id: u32 };
+pub fn getLastPosePredictionIDs(self: Self) CompositorError!PosePredictionIDs {
+    var prediction_ids: PosePredictionIDs = undefined;
+    const compositor_error = self.function_table.GetLastPosePredictionIDs(&prediction_ids.render_pose_prediction_id, &prediction_ids.gamer_pose_prediction_id);
+    try compositor_error.maybe();
+    return prediction_ids;
+}
+
+pub fn PosesForFrame(self: Self, allocator: std.mem.Allocator, pose_prediction_id: u32, pose_count: usize) CompositorError![]common.TrackedDevicePose {
+    const device_poses = try allocator.alloc(u8, pose_count);
+    const compositor_error = self.function_table.GetPosesForFrame(pose_prediction_id, device_poses.ptr, device_poses.len);
+    try compositor_error.maybe();
+    return device_poses;
+}
+
+const glUInt = anyopaque;
+const glSharedTextureHandle = anyopaque;
+const VkPhysicalDevice = anyopaque;
+pub const FunctionTable = extern struct {
+    SetTrackingSpace: *const fn (common.TrackingUniverseOrigin) callconv(.C) void,
+    GetTrackingSpace: *const fn () callconv(.C) common.TrackingUniverseOrigin,
+    WaitGetPoses: *const fn (*common.TrackedDevicePose, u32, *common.TrackedDevicePose, u32) callconv(.C) CompositorErrorCode,
+    GetLastPoses: *const fn (*common.TrackedDevicePose, u32, *common.TrackedDevicePose, u32) callconv(.C) CompositorErrorCode,
+    GetLastPoseForTrackedDeviceIndex: *const fn (common.TrackedDeviceIndex, *common.TrackedDevicePose, *common.TrackedDevicePose) callconv(.C) CompositorErrorCode,
+    Submit: *const fn (common.Eye, *Texture, *TextureBounds, SubmitFlags) callconv(.C) CompositorErrorCode,
+    SubmitWithArrayIndex: *const fn (common.Eye, *Texture, u32, *TextureBounds, SubmitFlags) callconv(.C) CompositorErrorCode,
+    ClearLastSubmittedFrame: *const fn () callconv(.C) void,
+    PostPresentHandoff: *const fn () callconv(.C) void,
+    GetFrameTiming: *const fn (*FrameTiming, u32) callconv(.C) bool,
+    GetFrameTimings: *const fn (*FrameTiming, u32) callconv(.C) u32,
+    GetFrameTimeRemaining: *const fn () callconv(.C) f32,
+    GetCumulativeStats: *const fn (*CumulativeStats, u32) callconv(.C) void,
+    FadeToColor: *const fn (f32, f32, f32, f32, f32, bool) callconv(.C) void,
+    GetCurrentFadeColor: *const fn (bool) callconv(.C) common.Color,
+    FadeGrid: *const fn (f32, bool) callconv(.C) void,
+    GetCurrentGridAlpha: *const fn () callconv(.C) f32,
+    SetSkyboxOverride: *const fn (*Texture, u32) callconv(.C) CompositorErrorCode,
+    ClearSkyboxOverride: *const fn () callconv(.C) void,
+    CompositorBringToFront: *const fn () callconv(.C) void,
+    CompositorGoToBack: *const fn () callconv(.C) void,
+    CompositorQuit: *const fn () callconv(.C) void,
+    IsFullscreen: *const fn () callconv(.C) bool,
+    GetCurrentSceneFocusProcess: *const fn () callconv(.C) u32,
+    GetLastFrameRenderer: *const fn () callconv(.C) u32,
+    CanRenderScene: *const fn () callconv(.C) bool,
+    ShowMirrorWindow: *const fn () callconv(.C) void,
+    HideMirrorWindow: *const fn () callconv(.C) void,
+    IsMirrorWindowVisible: *const fn () callconv(.C) bool,
+    CompositorDumpImages: *const fn () callconv(.C) void,
+    ShouldAppRenderWithLowResources: *const fn () callconv(.C) bool,
+    ForceInterleavedReprojectionOn: *const fn (bool) callconv(.C) void,
+    ForceReconnectProcess: *const fn () callconv(.C) void,
+    SuspendRendering: *const fn (bool) callconv(.C) void,
+    GetMirrorTextureD3D11: *const fn (common.Eye, ?*anyopaque, *?*anyopaque) callconv(.C) CompositorErrorCode,
+    ReleaseMirrorTextureD3D11: *const fn (?*anyopaque) callconv(.C) void,
+    GetMirrorTextureGL: *const fn (common.Eye, *glUInt, *glSharedTextureHandle) callconv(.C) CompositorErrorCode,
+    ReleaseSharedGLTexture: usize,
+    LockGLSharedTextureForAccess: usize,
+    UnlockGLSharedTextureForAccess: usize,
+    //ReleaseSharedGLTexture: *const fn (glUInt, glSharedTextureHandle) callconv(.C) bool,
+    //LockGLSharedTextureForAccess: *const fn (glSharedTextureHandle) callconv(.C) void,
+    //UnlockGLSharedTextureForAccess: *const fn (glSharedTextureHandle) callconv(.C) void,
+    GetVulkanInstanceExtensionsRequired: *const fn ([*c]u8, u32) callconv(.C) u32,
+    GetVulkanDeviceExtensionsRequired: *const fn (?*VkPhysicalDevice, [*c]u8, u32) callconv(.C) u32,
+    SetExplicitTimingMode: *const fn (TimingMode) callconv(.C) void,
+    SubmitExplicitTimingData: *const fn () callconv(.C) CompositorErrorCode,
+    IsMotionSmoothingEnabled: *const fn () callconv(.C) bool,
+    IsMotionSmoothingSupported: *const fn () callconv(.C) bool,
+    IsCurrentSceneFocusAppLoading: *const fn () callconv(.C) bool,
+    SetStageOverride_Async: *const fn ([*c]u8, *common.Matrix34, *StageRenderSettings, u32) callconv(.C) CompositorErrorCode,
+    ClearStageOverride: *const fn () callconv(.C) void,
+    GetCompositorBenchmarkResults: *const fn (BenchmarkResults, u32) callconv(.C) bool,
+    GetLastPosePredictionIDs: *const fn (u32, u32) callconv(.C) CompositorErrorCode,
+    GetPosesForFrame: *const fn (u32, common.TrackedDevicePose, u32) callconv(.C) CompositorErrorCode,
+};

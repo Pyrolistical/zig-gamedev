@@ -695,8 +695,58 @@ pub const Vector3 = extern struct {
     v: [3]f32,
 };
 
+pub const Matrix34 = extern struct {
+    m: [3][4]f32,
+};
+
 pub const TrackingUniverseOrigin = enum(i32) {
     seated = 0,
     standing = 1,
     raw_and_uncalibrated = 2,
+};
+
+pub const max_tracked_device_count: usize = 64;
+
+pub const TrackingResult = enum(i32) {
+    uninitialized = 1,
+    calibrating_in_progress = 100,
+    calibrating_out_of_range = 101,
+    running_ok = 200,
+    running_out_of_range = 201,
+    fallback_rotation_only = 300,
+};
+
+pub const TrackedDeviceIndex = u32;
+
+pub const TrackedDevicePose = extern struct {
+    device_to_absolute_tracking: Matrix34,
+    velocity: Vector3,
+    angular_velocity: Vector3,
+    tracking_result: TrackingResult,
+    pose_is_valid: bool,
+    device_is_connected: bool,
+};
+
+pub const TextureType = enum(i32) {
+    invalid = -1,
+    directx = 0,
+    opengl = 1,
+    vulkan = 2,
+    iosurface = 3,
+    directx12 = 4,
+    dxgi_shared_handle = 5,
+    metal = 6,
+    reserved = 7,
+};
+
+pub const Eye = enum(i32) {
+    left = 0,
+    right = 1,
+};
+
+pub const Color = extern struct {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
 };

@@ -310,6 +310,9 @@ const OpenVRWindow = struct {
     chaperone_init_error: OpenVR.InitError = OpenVR.InitError.None,
     chaperone: ?OpenVR.Chaperone = null,
 
+    compositor_init_error: OpenVR.InitError = OpenVR.InitError.None,
+    compositor: ?OpenVR.Compositor = null,
+
     pub fn init() OpenVRWindow {
         return .{};
     }
@@ -321,6 +324,7 @@ const OpenVRWindow = struct {
         self.openvr = null;
         self.system = null;
         self.chaperone = null;
+        self.compositor = null;
     }
 
     fn show(self: *OpenVRWindow) void {
@@ -335,6 +339,7 @@ const OpenVRWindow = struct {
                     self.openvr = null;
                     self.system = null;
                     self.chaperone = null;
+                    self.compositor = null;
                     return;
                 }
                 {
@@ -369,21 +374,47 @@ const OpenVRWindow = struct {
                     }
                     zgui.text("init error: {!}", .{self.system_init_error});
                 }
-                zgui.separatorText("Chaperone");
-                if (self.chaperone) |chaperone| {
-                    zgui.beginDisabled(.{ .disabled = true });
+                {
+                    zgui.beginDisabled(.{ .disabled = self.system == null });
                     defer zgui.endDisabled();
+                    zgui.separatorText("Chaperone");
+                    if (self.chaperone) |chaperone| {
+                        zgui.beginDisabled(.{ .disabled = true });
+                        defer zgui.endDisabled();
 
-                    _ = zgui.inputText("calibration state", .{ .buf = @constCast(@tagName(chaperone.getCalibrationState())) });
-                } else {
-                    if (zgui.button("init", .{})) {
-                        self.chaperone_init_error = OpenVR.InitError.None;
-                        self.chaperone = openvr.chaperone() catch |err| chaperone: {
-                            self.chaperone_init_error = err;
-                            break :chaperone null;
-                        };
+                        _ = zgui.inputText("calibration state", .{ .buf = @constCast(@tagName(chaperone.getCalibrationState())) });
+                    } else {
+                        if (zgui.button("init", .{})) {
+                            self.chaperone_init_error = OpenVR.InitError.None;
+                            self.chaperone = openvr.chaperone() catch |err| chaperone: {
+                                self.chaperone_init_error = err;
+                                break :chaperone null;
+                            };
+                        }
+                        zgui.text("init error: {!}", .{self.chaperone_init_error});
                     }
-                    zgui.text("init error: {!}", .{self.chaperone_init_error});
+                }
+                {
+                    zgui.beginDisabled(.{ .disabled = self.system == null or self.chaperone == null });
+                    defer zgui.endDisabled();
+                    zgui.separatorText("Compositor");
+                    if (self.compositor) |compositor| {
+                        zgui.beginDisabled(.{ .disabled = true });
+                        defer zgui.endDisabled();
+
+                        _ = zgui.checkbox("fullscreen", .{ .v = @constCast(&compositor.isFullscreen()) });
+                        _ = zgui.checkbox("motion smoothing enabled", .{ .v = @constCast(&compositor.isMotionSmoothingEnabled()) });
+                        _ = zgui.checkbox("motion smoothing supported", .{ .v = @constCast(&compositor.isMotionSmoothingSupported()) });
+                    } else {
+                        if (zgui.button("init", .{})) {
+                            self.compositor_init_error = OpenVR.InitError.None;
+                            self.compositor = openvr.compositor() catch |err| compositor: {
+                                self.compositor_init_error = err;
+                                break :compositor null;
+                            };
+                        }
+                        zgui.text("init error: {!}", .{self.compositor_init_error});
+                    }
                 }
             } else {
                 if (zgui.button("init", .{})) {

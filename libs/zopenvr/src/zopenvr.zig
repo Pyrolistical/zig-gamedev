@@ -58,6 +58,11 @@ pub fn chaperone(_: Self) common.InitError!Chaperone {
     return try Chaperone.init();
 }
 
+pub fn compositor(_: Self) common.InitError!Compositor {
+    return try Compositor.init();
+}
+
 pub usingnamespace @import("common.zig");
 pub const System = @import("system.zig");
 pub const Chaperone = @import("chaperone.zig");
+pub const Compositor = @import("compositor.zig");
