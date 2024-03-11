@@ -13,15 +13,18 @@ pub fn build(b: *std.Build, options: Options) *std.Build.Step.Compile {
         .optimize = options.optimize,
     });
 
-    const zopenvr_pkg = @import("../../build.zig").zopenvr_pkg;
-    const zgui_pkg = @import("../../build.zig").zgui_glfw_wgpu_pkg;
-    const zgpu_pkg = @import("../../build.zig").zgpu_pkg;
+    const zgui_pkg = @import("../../build.zig").zgui_glfw_d3d12_pkg;
+    const zd3d12_pkg = @import("../../build.zig").zd3d12_pkg;
+    const zwin32_pkg = @import("../../build.zig").zwin32_pkg;
     const zglfw_pkg = @import("../../build.zig").zglfw_pkg;
+    const zopenvr_pkg = @import("../../build.zig").zopenvr_pkg;
 
-    zopenvr_pkg.link(exe);
     zgui_pkg.link(exe);
-    zgpu_pkg.link(exe);
+    zd3d12_pkg.link(exe);
+    zwin32_pkg.link(exe, .{ .d3d12 = true });
     zglfw_pkg.link(exe);
+    zglfw_pkg.link(exe);
+    zopenvr_pkg.link(exe);
 
     const exe_options = b.addOptions();
     exe.root_module.addOptions("build_options", exe_options);
