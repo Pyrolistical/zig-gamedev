@@ -330,7 +330,7 @@ const OpenVRWindow = struct {
         self.compositor = null;
     }
 
-    fn show(self: *OpenVRWindow) void {
+    fn show(self: *OpenVRWindow, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
         zgui.setNextWindowSize(.{ .w = 1000, .h = 1000, .cond = .first_use_ever });
 
@@ -367,6 +367,20 @@ const OpenVRWindow = struct {
                     }
 
                     _ = zgui.inputText("runtime version", .{ .buf = @constCast(system.getRuntimeVersion()) });
+                    zgui.separatorText("head mounted display properties");
+                    {
+                        zgui.indent(.{ .indent_w = 30.0 });
+                        defer zgui.unindent(.{ .indent_w = 30.0 });
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
+                            const value: ?[]u8 = system.allocStringTrackedDeviceProperty(allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.String, @enumFromInt(field.value))) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            defer if (value) |v| allocator.free(v);
+                            _ = zgui.inputText(field.name ++ "##tracked device property string", .{ .buf = @constCast(value orelse "Unknown property/not yet available") });
+                        }
+                    }
                 } else {
                     if (zgui.button("init", .{})) {
                         self.system_init_error = OpenVR.InitError.None;
@@ -532,7 +546,7 @@ pub fn main() !void {
             );
 
             // try display_window.show(allocator, surface);
-            open_vr_window.show();
+            try open_vr_window.show(allocator);
 
             zgui.backend.draw(surface.gctx.cmdlist);
 

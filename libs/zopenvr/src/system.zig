@@ -289,6 +289,59 @@ pub const TrackedDeviceProperty = enum(i32) {
     vendor_specific_reserved_start = 10000,
     vendor_specific_reserved_end = 10999,
     tracked_device_property_max = 1000000,
+
+    pub const String = enum(i32) {
+        tracking_system_name = @intFromEnum(TrackedDeviceProperty.tracking_system_name_string),
+        model_number = @intFromEnum(TrackedDeviceProperty.model_number_string),
+        serial_number = @intFromEnum(TrackedDeviceProperty.serial_number_string),
+        render_model_name = @intFromEnum(TrackedDeviceProperty.render_model_name_string),
+        manufacturer_name = @intFromEnum(TrackedDeviceProperty.manufacturer_name_string),
+        tracking_firmware_version = @intFromEnum(TrackedDeviceProperty.tracking_firmware_version_string),
+        hardware_revision = @intFromEnum(TrackedDeviceProperty.hardware_revision_string),
+        all_wireless_dongle_descriptions = @intFromEnum(TrackedDeviceProperty.all_wireless_dongle_descriptions_string),
+        connected_wireless_dongle = @intFromEnum(TrackedDeviceProperty.connected_wireless_dongle_string),
+        firmware_manual_update_url = @intFromEnum(TrackedDeviceProperty.firmware_manual_update_url_string),
+        firmware_programming_target = @intFromEnum(TrackedDeviceProperty.firmware_programming_target_string),
+        driver_version = @intFromEnum(TrackedDeviceProperty.driver_version_string),
+        resource_root = @intFromEnum(TrackedDeviceProperty.resource_root_string),
+        registered_device_type = @intFromEnum(TrackedDeviceProperty.registered_device_type_string),
+        input_profile_path = @intFromEnum(TrackedDeviceProperty.input_profile_path_string),
+        additional_device_settings_path = @intFromEnum(TrackedDeviceProperty.additional_device_settings_path_string),
+        additional_system_report_data = @intFromEnum(TrackedDeviceProperty.additional_system_report_data_string),
+        composite_firmware_version = @intFromEnum(TrackedDeviceProperty.composite_firmware_version_string),
+        manufacturer_serial_number = @intFromEnum(TrackedDeviceProperty.manufacturer_serial_number_string),
+        computed_serial_number = @intFromEnum(TrackedDeviceProperty.computed_serial_number_string),
+        actual_tracking_system_name = @intFromEnum(TrackedDeviceProperty.actual_tracking_system_name_string),
+        display_mc_image_left = @intFromEnum(TrackedDeviceProperty.display_mc_image_left_string),
+        display_mc_image_right = @intFromEnum(TrackedDeviceProperty.display_mc_image_right_string),
+        display_gc_image = @intFromEnum(TrackedDeviceProperty.display_gc_image_string),
+        camera_firmware_description = @intFromEnum(TrackedDeviceProperty.camera_firmware_description_string),
+        driver_provided_chaperone_path = @intFromEnum(TrackedDeviceProperty.driver_provided_chaperone_path_string),
+        named_icon_path_controller_left_device_off = @intFromEnum(TrackedDeviceProperty.named_icon_path_controller_left_device_off_string),
+        named_icon_path_controller_right_device_off = @intFromEnum(TrackedDeviceProperty.named_icon_path_controller_right_device_off_string),
+        named_icon_path_tracking_reference_device_off = @intFromEnum(TrackedDeviceProperty.named_icon_path_tracking_reference_device_off_string),
+        expected_controller_type = @intFromEnum(TrackedDeviceProperty.expected_controller_type_string),
+        hmd_column_correction_setting_prefix = @intFromEnum(TrackedDeviceProperty.hmd_column_correction_setting_prefix_string),
+        peer_button_info = @intFromEnum(TrackedDeviceProperty.peer_button_info_string),
+        driver_provided_chaperone_json = @intFromEnum(TrackedDeviceProperty.driver_provided_chaperone_json_string),
+        audio_default_playback_device_id = @intFromEnum(TrackedDeviceProperty.audio_default_playback_device_id_string),
+        audio_default_recording_device_id = @intFromEnum(TrackedDeviceProperty.audio_default_recording_device_id_string),
+        attached_device_id = @intFromEnum(TrackedDeviceProperty.attached_device_id_string),
+        mode_label = @intFromEnum(TrackedDeviceProperty.mode_label_string),
+        icon_path_name = @intFromEnum(TrackedDeviceProperty.icon_path_name_string),
+        named_icon_path_device_off = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_off_string),
+        named_icon_path_device_searching = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_searching_string),
+        named_icon_path_device_searching_alert = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_searching_alert_string),
+        named_icon_path_device_ready = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_ready_string),
+        named_icon_path_device_ready_alert = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_ready_alert_string),
+        named_icon_path_device_not_ready = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_not_ready_string),
+        named_icon_path_device_standby = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_standby_string),
+        named_icon_path_device_alert_low = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_alert_low_string),
+        named_icon_path_device_standby_alert = @intFromEnum(TrackedDeviceProperty.named_icon_path_device_standby_alert_string),
+        user_config_path = @intFromEnum(TrackedDeviceProperty.user_config_path_string),
+        install_path = @intFromEnum(TrackedDeviceProperty.install_path_string),
+        controller_type = @intFromEnum(TrackedDeviceProperty.controller_type_string),
+    };
 };
 
 pub const TrackedPropertyError = error{
@@ -956,20 +1009,38 @@ pub const PropertyTypeTagCode = enum(i32) {
     }
 };
 
-pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: std.mem.Allocator, buffer_size: usize, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]T {
-    var buffer = try allocator.alloc(u8, buffer_size);
+pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]T {
     var property_error: TrackedPropertyErrorCode = undefined;
-    const length = try self.function_table.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), buffer, buffer_size, &property_error);
+    const buffer_length = self.function_table.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), null, 0, &property_error);
+    property_error.maybe() catch |err| switch (err) {
+        TrackedPropertyError.BufferTooSmall => {},
+        else => return err,
+    };
+
+    const buffer = try allocator.alloc(u8, buffer_length);
+
+    property_error = undefined;
+    _ = self.function_table.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), @ptrCast(buffer.ptr), buffer_length, &property_error);
     try property_error.maybe();
-    return @ptrCast(buffer[0..length]);
+
+    return @ptrCast(buffer);
 }
 
-pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, buffer_size: usize, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]u8 {
-    var buffer = try allocator.alloc(u8, buffer_size);
+pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.String) TrackedPropertyError![]u8 {
     var property_error: TrackedPropertyErrorCode = undefined;
-    const length = try self.function_table.GetStringTrackedDeviceProperty(device_index, property, buffer, buffer_size, &property_error);
+    const buffer_length = self.function_table.GetStringTrackedDeviceProperty(device_index, property, null, 0, &property_error);
+    property_error.maybe() catch |err| switch (err) {
+        TrackedPropertyError.BufferTooSmall => {},
+        else => return err,
+    };
+
+    const buffer = try allocator.alloc(u8, buffer_length);
+
+    property_error = undefined;
+    _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, @ptrCast(buffer.ptr), buffer_length, &property_error);
     try property_error.maybe();
-    return buffer[0..length];
+
+    return buffer;
 }
 
 pub fn getPropErrorNameFromEnum(self: Self, property_error: TrackedPropertyErrorCode) []const u8 {
@@ -1106,7 +1177,7 @@ pub const FunctionTable = extern struct {
     GetUint64TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) u64,
     GetMatrix34TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) common.Matrix34,
     GetArrayTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTag, ?*anyopaque, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
-    GetStringTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
+    GetStringTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty.String, ?*u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
     GetPropErrorNameFromEnum: *const fn (TrackedPropertyErrorCode) callconv(.C) [*c]u8,
     PollNextEvent: *const fn (*Event, u32) callconv(.C) bool,
     PollNextEventWithPose: *const fn (common.TrackingUniverseOrigin, *Event, u32, *common.TrackedDevicePose) callconv(.C) bool,
