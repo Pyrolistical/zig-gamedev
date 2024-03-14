@@ -371,6 +371,18 @@ const OpenVRWindow = struct {
                     {
                         zgui.indent(.{ .indent_w = 30.0 });
                         defer zgui.unindent(.{ .indent_w = 30.0 });
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
+                            const value: ?bool = system.getTrackedDeviceProperty(bool, 0, @as(OpenVR.System.TrackedDeviceProperty, @enumFromInt(field.value))) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            if (value) |v| {
+                                _ = zgui.checkbox(field.name ++ "##tracked device property bool", .{ .v = @constCast(&v) });
+                            } else {
+                                _ = zgui.inputText(field.name ++ "##tracked device property bool", .{ .buf = @constCast("Unknown property/not yet available") });
+                            }
+                        }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
                             const value: ?[]u8 = system.allocStringTrackedDeviceProperty(allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.String, @enumFromInt(field.value))) catch |err| switch (err) {
                                 OpenVR.System.TrackedPropertyError.UnknownProperty => null,
