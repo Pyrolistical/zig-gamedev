@@ -428,6 +428,20 @@ const OpenVRWindow = struct {
                             defer if (value) |v| allocator.free(v);
                             _ = zgui.inputText(field.name ++ ": string##tracked device property", .{ .buf = @constCast(value orelse "Unknown property/not yet available") });
                         }
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Matrix34).Enum.fields) |field| {
+                            const value: ?OpenVR.Matrix34 = system.getTrackedDeviceProperty(OpenVR.Matrix34, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            if (value) |v| {
+                                _ = zgui.inputFloat4(field.name ++ ": Matrix34##tracked device property row 0", .{ .v = @constCast(&v.m[0]) });
+                                _ = zgui.inputFloat4("##tracked device property row 1", .{ .v = @constCast(&v.m[1]) });
+                                _ = zgui.inputFloat4("##tracked device property row 2", .{ .v = @constCast(&v.m[2]) });
+                            } else {
+                                _ = zgui.inputText(field.name ++ ": Matrix34##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                            }
+                        }
                     }
                 } else {
                     if (zgui.button("init", .{})) {
