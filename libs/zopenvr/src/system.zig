@@ -290,6 +290,17 @@ pub const TrackedDeviceProperty = enum(i32) {
     vendor_specific_reserved_end = 10999,
     tracked_device_property_max = 1000000,
 
+    pub fn fromType(comptime T: type) type {
+        return switch (T) {
+            bool => TrackedDeviceProperty.Bool,
+            f32 => TrackedDeviceProperty.Float,
+            i32 => TrackedDeviceProperty.Int32,
+            u64 => TrackedDeviceProperty.Uint64,
+            common.Matrix34 => TrackedDeviceProperty.Matrix34,
+            else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
+        };
+    }
+
     pub const Bool = enum(i32) {
         will_drift_in_yaw = @intFromEnum(TrackedDeviceProperty.will_drift_in_yaw_bool),
         device_is_wireless = @intFromEnum(TrackedDeviceProperty.device_is_wireless_bool),
@@ -351,6 +362,119 @@ pub const TrackedDeviceProperty = enum(i32) {
         supports_xr_texture_sets = @intFromEnum(TrackedDeviceProperty.supports_xr_texture_sets_bool),
     };
 
+    pub const Float = enum(i32) {
+        device_battery_percentage = @intFromEnum(TrackedDeviceProperty.device_battery_percentage_float),
+        device_power_usage = @intFromEnum(TrackedDeviceProperty.device_power_usage_float),
+        seconds_from_vsync_to_photons = @intFromEnum(TrackedDeviceProperty.seconds_from_vsync_to_photons_float),
+        display_frequency = @intFromEnum(TrackedDeviceProperty.display_frequency_float),
+        user_ipd_meters = @intFromEnum(TrackedDeviceProperty.user_ipd_meters_float),
+        display_mc_offset = @intFromEnum(TrackedDeviceProperty.display_mc_offset_float),
+        display_mc_scale = @intFromEnum(TrackedDeviceProperty.display_mc_scale_float),
+        display_gc_black_clamp = @intFromEnum(TrackedDeviceProperty.display_gc_black_clamp_float),
+        display_gc_offset = @intFromEnum(TrackedDeviceProperty.display_gc_offset_float),
+        display_gc_scale = @intFromEnum(TrackedDeviceProperty.display_gc_scale_float),
+        display_gc_prescale = @intFromEnum(TrackedDeviceProperty.display_gc_prescale_float),
+        lens_center_left_u = @intFromEnum(TrackedDeviceProperty.lens_center_left_u_float),
+        lens_center_left_v = @intFromEnum(TrackedDeviceProperty.lens_center_left_v_float),
+        lens_center_right_u = @intFromEnum(TrackedDeviceProperty.lens_center_right_u_float),
+        lens_center_right_v = @intFromEnum(TrackedDeviceProperty.lens_center_right_v_float),
+        user_head_to_eye_depth_meters = @intFromEnum(TrackedDeviceProperty.user_head_to_eye_depth_meters_float),
+        screenshot_horizontal_field_of_view_degrees = @intFromEnum(TrackedDeviceProperty.screenshot_horizontal_field_of_view_degrees_float),
+        screenshot_vertical_field_of_view_degrees = @intFromEnum(TrackedDeviceProperty.screenshot_vertical_field_of_view_degrees_float),
+        seconds_from_photons_to_vblank = @intFromEnum(TrackedDeviceProperty.seconds_from_photons_to_vblank_float),
+        minimum_ipd_step_meters = @intFromEnum(TrackedDeviceProperty.minimum_ipd_step_meters_float),
+        display_min_analog_gain = @intFromEnum(TrackedDeviceProperty.display_min_analog_gain_float),
+        display_max_analog_gain = @intFromEnum(TrackedDeviceProperty.display_max_analog_gain_float),
+        camera_exposure_time = @intFromEnum(TrackedDeviceProperty.camera_exposure_time_float),
+        camera_global_gain = @intFromEnum(TrackedDeviceProperty.camera_global_gain_float),
+        dashboard_scale = @intFromEnum(TrackedDeviceProperty.dashboard_scale_float),
+        ipd_ui_range_min_meters = @intFromEnum(TrackedDeviceProperty.ipd_ui_range_min_meters_float),
+        ipd_ui_range_max_meters = @intFromEnum(TrackedDeviceProperty.ipd_ui_range_max_meters_float),
+        audio_default_playback_device_volume = @intFromEnum(TrackedDeviceProperty.audio_default_playback_device_volume_float),
+        audio_driver_playback_volume = @intFromEnum(TrackedDeviceProperty.audio_driver_playback_volume_float),
+        audio_driver_recording_volume = @intFromEnum(TrackedDeviceProperty.audio_driver_recording_volume_float),
+        field_of_view_left_degrees = @intFromEnum(TrackedDeviceProperty.field_of_view_left_degrees_float),
+        field_of_view_right_degrees = @intFromEnum(TrackedDeviceProperty.field_of_view_right_degrees_float),
+        field_of_view_top_degrees = @intFromEnum(TrackedDeviceProperty.field_of_view_top_degrees_float),
+        field_of_view_bottom_degrees = @intFromEnum(TrackedDeviceProperty.field_of_view_bottom_degrees_float),
+        tracking_range_minimum_meters = @intFromEnum(TrackedDeviceProperty.tracking_range_minimum_meters_float),
+        tracking_range_maximum_meters = @intFromEnum(TrackedDeviceProperty.tracking_range_maximum_meters_float),
+    };
+
+    pub const Int32 = enum(i32) {
+        device_class = @intFromEnum(TrackedDeviceProperty.device_class_int32),
+        num_cameras = @intFromEnum(TrackedDeviceProperty.num_cameras_int32),
+        camera_frame_layout = @intFromEnum(TrackedDeviceProperty.camera_frame_layout_int32),
+        camera_stream_format = @intFromEnum(TrackedDeviceProperty.camera_stream_format_int32),
+        estimated_device_first_use_time = @intFromEnum(TrackedDeviceProperty.estimated_device_first_use_time_int32),
+        display_mc_type = @intFromEnum(TrackedDeviceProperty.display_mc_type_int32),
+        edid_vendor_id = @intFromEnum(TrackedDeviceProperty.edid_vendor_id_int32),
+        edid_product_id = @intFromEnum(TrackedDeviceProperty.edid_product_id_int32),
+        display_gc_type = @intFromEnum(TrackedDeviceProperty.display_gc_type_int32),
+        camera_compatibility_mode = @intFromEnum(TrackedDeviceProperty.camera_compatibility_mode_int32),
+        display_mc_image_width = @intFromEnum(TrackedDeviceProperty.display_mc_image_width_int32),
+        display_mc_image_height = @intFromEnum(TrackedDeviceProperty.display_mc_image_height_int32),
+        display_mc_image_num_channels = @intFromEnum(TrackedDeviceProperty.display_mc_image_num_channels_int32),
+        expected_tracking_reference_count = @intFromEnum(TrackedDeviceProperty.expected_tracking_reference_count_int32),
+        expected_controller_count = @intFromEnum(TrackedDeviceProperty.expected_controller_count_int32),
+        distortion_mesh_resolution = @intFromEnum(TrackedDeviceProperty.distortion_mesh_resolution_int32),
+        hmd_tracking_style = @intFromEnum(TrackedDeviceProperty.hmd_tracking_style_int32),
+        dsc_version = @intFromEnum(TrackedDeviceProperty.dsc_version_int32),
+        dsc_slice_count = @intFromEnum(TrackedDeviceProperty.dsc_slice_count_int32),
+        dscbp_px16 = @intFromEnum(TrackedDeviceProperty.dscbp_px16_int32),
+        hmd_max_distorted_texture_width = @intFromEnum(TrackedDeviceProperty.hmd_max_distorted_texture_width_int32),
+        hmd_max_distorted_texture_height = @intFromEnum(TrackedDeviceProperty.hmd_max_distorted_texture_height_int32),
+        driver_requested_mura_correction_mode = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_correction_mode_int32),
+        driver_requested_mura_feather_inner_left = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_inner_left_int32),
+        driver_requested_mura_feather_inner_right = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_inner_right_int32),
+        driver_requested_mura_feather_inner_top = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_inner_top_int32),
+        driver_requested_mura_feather_inner_bottom = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_inner_bottom_int32),
+        driver_requested_mura_feather_outer_left = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_outer_left_int32),
+        driver_requested_mura_feather_outer_right = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_outer_right_int32),
+        driver_requested_mura_feather_outer_top = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_outer_top_int32),
+        driver_requested_mura_feather_outer_bottom = @intFromEnum(TrackedDeviceProperty.driver_requested_mura_feather_outer_bottom_int32),
+        axis0_type = @intFromEnum(TrackedDeviceProperty.axis0_type_int32),
+        axis1_type = @intFromEnum(TrackedDeviceProperty.axis1_type_int32),
+        axis2_type = @intFromEnum(TrackedDeviceProperty.axis2_type_int32),
+        axis3_type = @intFromEnum(TrackedDeviceProperty.axis3_type_int32),
+        axis4_type = @intFromEnum(TrackedDeviceProperty.axis4_type_int32),
+        controller_role_hint = @intFromEnum(TrackedDeviceProperty.controller_role_hint_int32),
+        nonce = @intFromEnum(TrackedDeviceProperty.nonce_int32),
+        controller_hand_selection_priority = @intFromEnum(TrackedDeviceProperty.controller_hand_selection_priority_int32),
+    };
+
+    pub const Uint64 = enum(i32) {
+        hardware_revision = @intFromEnum(TrackedDeviceProperty.hardware_revision_uint64),
+        firmware_version = @intFromEnum(TrackedDeviceProperty.firmware_version_uint64),
+        fpga_version = @intFromEnum(TrackedDeviceProperty.fpga_version_uint64),
+        vrc_version = @intFromEnum(TrackedDeviceProperty.vrc_version_uint64),
+        radio_version = @intFromEnum(TrackedDeviceProperty.radio_version_uint64),
+        dongle_version = @intFromEnum(TrackedDeviceProperty.dongle_version_uint64),
+        parent_driver = @intFromEnum(TrackedDeviceProperty.parent_driver_uint64),
+        bootloader_version = @intFromEnum(TrackedDeviceProperty.bootloader_version_uint64),
+        peripheral_application_version = @intFromEnum(TrackedDeviceProperty.peripheral_application_version_uint64),
+        current_universe_id = @intFromEnum(TrackedDeviceProperty.current_universe_id_uint64),
+        previous_universe_id = @intFromEnum(TrackedDeviceProperty.previous_universe_id_uint64),
+        display_firmware_version = @intFromEnum(TrackedDeviceProperty.display_firmware_version_uint64),
+        camera_firmware_version = @intFromEnum(TrackedDeviceProperty.camera_firmware_version_uint64),
+        display_fpga_version = @intFromEnum(TrackedDeviceProperty.display_fpga_version_uint64),
+        display_bootloader_version = @intFromEnum(TrackedDeviceProperty.display_bootloader_version_uint64),
+        display_hardware_version = @intFromEnum(TrackedDeviceProperty.display_hardware_version_uint64),
+        audio_firmware_version = @intFromEnum(TrackedDeviceProperty.audio_firmware_version_uint64),
+        graphics_adapter_luid = @intFromEnum(TrackedDeviceProperty.graphics_adapter_luid_uint64),
+        audio_bridge_firmware_version = @intFromEnum(TrackedDeviceProperty.audio_bridge_firmware_version_uint64),
+        image_bridge_firmware_version = @intFromEnum(TrackedDeviceProperty.image_bridge_firmware_version_uint64),
+        additional_radio_features = @intFromEnum(TrackedDeviceProperty.additional_radio_features_uint64),
+        supported_buttons = @intFromEnum(TrackedDeviceProperty.supported_buttons_uint64),
+        override_container = @intFromEnum(TrackedDeviceProperty.override_container_uint64),
+    };
+
+    pub const Matrix34 = enum(i32) {
+        status_display_transform = @intFromEnum(TrackedDeviceProperty.status_display_transform_matrix34),
+        camera_to_head_transform = @intFromEnum(TrackedDeviceProperty.camera_to_head_transform_matrix34),
+        imu_to_head_transform = @intFromEnum(TrackedDeviceProperty.imu_to_head_transform_matrix34),
+    };
+
     pub const String = enum(i32) {
         tracking_system_name = @intFromEnum(TrackedDeviceProperty.tracking_system_name_string),
         model_number = @intFromEnum(TrackedDeviceProperty.model_number_string),
@@ -402,6 +526,14 @@ pub const TrackedDeviceProperty = enum(i32) {
         user_config_path = @intFromEnum(TrackedDeviceProperty.user_config_path_string),
         install_path = @intFromEnum(TrackedDeviceProperty.install_path_string),
         controller_type = @intFromEnum(TrackedDeviceProperty.controller_type_string),
+    };
+
+    pub const Array = enum(i32) {
+        camera_to_head_transforms_matrix34 = @intFromEnum(TrackedDeviceProperty.camera_to_head_transforms_matrix34_array),
+        camera_white_balance_vector4 = @intFromEnum(TrackedDeviceProperty.camera_white_balance_vector4_array),
+        camera_distortion_function_int32 = @intFromEnum(TrackedDeviceProperty.camera_distortion_function_int32_array),
+        camera_distortion_coefficients_float = @intFromEnum(TrackedDeviceProperty.camera_distortion_coefficients_float_array),
+        display_available_frame_rates_float = @intFromEnum(TrackedDeviceProperty.display_available_frame_rates_float_array),
     };
 };
 
@@ -1013,15 +1145,15 @@ pub fn isTrackedDeviceConnected(self: Self, device_index: common.TrackedDeviceIn
     return self.function_table.IsTrackedDeviceConnected(device_index);
 }
 
-pub fn getTrackedDeviceProperty(self: Self, comptime T: type, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError!T {
+pub fn getTrackedDeviceProperty(self: Self, comptime T: type, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.fromType(T)) TrackedPropertyError!T {
     var property_error: TrackedPropertyErrorCode = undefined;
     const result = switch (T) {
-        bool => self.function_table.GetBoolTrackedDeviceProperty(device_index, property, &property_error),
-        f32 => self.function_table.GetFloatTrackedDeviceProperty(device_index, property, &property_error),
-        i32 => self.function_table.GetInt32TrackedDeviceProperty(device_index, property, &property_error),
-        u64 => self.function_table.GetUnit64TrackedDeviceProperty(device_index, property, &property_error),
-        common.Matrix34 => self.function_table.Getcommon.Matrix34TrackedDeviceProperty(device_index, property, &property_error),
-        else => @compileError("T must be bool, f32, i32, u64, common.Matrix34"),
+        bool => self.function_table.GetBoolTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        f32 => self.function_table.GetFloatTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        i32 => self.function_table.GetInt32TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        u64 => self.function_table.GetUint64TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        common.Matrix34 => self.function_table.GetMatrix34TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
     };
     try property_error.maybe();
     return result;

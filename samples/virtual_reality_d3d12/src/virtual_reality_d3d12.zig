@@ -372,15 +372,51 @@ const OpenVRWindow = struct {
                         zgui.indent(.{ .indent_w = 30.0 });
                         defer zgui.unindent(.{ .indent_w = 30.0 });
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
-                            const value: ?bool = system.getTrackedDeviceProperty(bool, 0, @as(OpenVR.System.TrackedDeviceProperty, @enumFromInt(field.value))) catch |err| switch (err) {
+                            const value: ?bool = system.getTrackedDeviceProperty(bool, 0, @enumFromInt(field.value)) catch |err| switch (err) {
                                 OpenVR.System.TrackedPropertyError.UnknownProperty => null,
                                 OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.checkbox(field.name ++ "##tracked device property bool", .{ .v = @constCast(&v) });
+                                _ = zgui.checkbox(field.name ++ ": bool##tracked device property", .{ .v = @constCast(&v) });
                             } else {
-                                _ = zgui.inputText(field.name ++ "##tracked device property bool", .{ .buf = @constCast("Unknown property/not yet available") });
+                                _ = zgui.inputText(field.name ++ ": bool##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                            }
+                        }
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Float).Enum.fields) |field| {
+                            const value: ?f32 = system.getTrackedDeviceProperty(f32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            if (value) |v| {
+                                _ = zgui.inputFloat(field.name ++ ": f32##tracked device property", .{ .v = @constCast(&v) });
+                            } else {
+                                _ = zgui.inputText(field.name ++ ": f32##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                            }
+                        }
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Int32).Enum.fields) |field| {
+                            const value: ?i32 = system.getTrackedDeviceProperty(i32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            if (value) |v| {
+                                _ = zgui.inputInt(field.name ++ ": i32##tracked device property", .{ .v = @constCast(&v), .step = 0 });
+                            } else {
+                                _ = zgui.inputText(field.name ++ ": i32##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                            }
+                        }
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Uint64).Enum.fields) |field| {
+                            const value: ?u64 = system.getTrackedDeviceProperty(u64, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            if (value) |v| {
+                                _ = zgui.inputScalar(field.name ++ ": u64##tracked device property", u64, .{ .v = @constCast(&v) });
+                            } else {
+                                _ = zgui.inputText(field.name ++ ": u64##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
                             }
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
@@ -390,7 +426,7 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             defer if (value) |v| allocator.free(v);
-                            _ = zgui.inputText(field.name ++ "##tracked device property string", .{ .buf = @constCast(value orelse "Unknown property/not yet available") });
+                            _ = zgui.inputText(field.name ++ ": string##tracked device property", .{ .buf = @constCast(value orelse "Unknown property/not yet available") });
                         }
                     }
                 } else {
