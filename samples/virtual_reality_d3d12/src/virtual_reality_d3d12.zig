@@ -314,6 +314,10 @@ fn readOnlyScalar(label: [:0]const u8, comptime T: type, v: T) void {
     _ = zgui.inputScalar(label, T, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
+fn readOnlyScalarN(label: [:0]const u8, comptime T: type, v: T) void {
+    _ = zgui.inputScalarN(label, T, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
+}
+
 fn readOnlyText(label: [:0]const u8, v: []const u8) void {
     _ = zgui.inputText(label, .{ .buf = @constCast(v), .flags = .{ .read_only = true } });
 }
@@ -324,6 +328,10 @@ fn readOnlyFloat(label: [:0]const u8, v: f32) void {
 
 fn readOnlyInt(label: [:0]const u8, v: i32) void {
     _ = zgui.inputInt(label, .{ .v = @constCast(&v), .step = 0, .flags = .{ .read_only = true } });
+}
+
+fn readOnlyFloat2(label: [:0]const u8, v: [2]f32) void {
+    _ = zgui.inputFloat2(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
@@ -338,12 +346,8 @@ const SystemWindow = struct {
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
             {
-                zgui.text("recommended render target size", .{});
-                zgui.indent(.{ .indent_w = 30.0 });
-                defer zgui.unindent(.{ .indent_w = 30.0 });
                 const recommended_render_target_size = self.system.getRecommendedRenderTargetSize();
-                readOnlyScalar("width", u32, recommended_render_target_size.width);
-                readOnlyScalar("height", u32, recommended_render_target_size.height);
+                readOnlyScalarN("recommended render target size: [width, height]", [2]u32, .{ recommended_render_target_size.width, recommended_render_target_size.height });
             }
 
             readOnlyText("runtime version", self.system.getRuntimeVersion());
@@ -456,6 +460,34 @@ const ChaperoneWindow = struct {
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
             readOnlyText("calibration state", @tagName(self.chaperone.getCalibrationState()));
+            {
+                if (self.chaperone.getPlayAreaSize()) |play_area_size| {
+                    readOnlyFloat2("play area size: [x meters, z meters]", .{ play_area_size.x, play_area_size.z });
+                } else {
+                    readOnlyText("play area size: [x meters, z meters]", "unavailable");
+                }
+            }
+            if (zgui.button("reload info", .{})) {
+                self.chaperone.reloadInfo();
+            }
+            {
+                zgui.separatorText("Bounds");
+                readOnlyCheckbox("visible", self.chaperone.areBoundsVisible());
+                if (zgui.button("force visible", .{})) {
+                    self.chaperone.forceBoundsVisible(true);
+                }
+                if (zgui.button("force invisible", .{})) {
+                    self.chaperone.forceBoundsVisible(false);
+                }
+            }
+            {
+                zgui.separatorText("Pose");
+                var origin: OpenVR.TrackingUniverseOrigin = .seated;
+                _ = zgui.comboFromEnum("origin", &origin);
+                if (zgui.button("reset zero", .{})) {
+                    self.chaperone.resetZeroPose(origin);
+                }
+            }
         }
     }
 };

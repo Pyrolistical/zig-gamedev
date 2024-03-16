@@ -36,7 +36,7 @@ pub const PlayAreaSize = struct {
 };
 pub fn getPlayAreaSize(self: Self) ?PlayAreaSize {
     var play_area: PlayAreaSize = undefined;
-    if (self.function_table.GetPlayAreaSize(&play_area.x, &play_area.y)) {
+    if (self.function_table.GetPlayAreaSize(&play_area.x, &play_area.z)) {
         return play_area;
     } else {
         return null;
