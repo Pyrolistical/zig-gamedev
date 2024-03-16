@@ -334,6 +334,10 @@ fn readOnlyFloat2(label: [:0]const u8, v: [2]f32) void {
     _ = zgui.inputFloat2(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
+fn readOnlyFloat3(label: [:0]const u8, v: [3]f32) void {
+    _ = zgui.inputFloat3(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
+}
+
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
@@ -453,39 +457,62 @@ const SystemWindow = struct {
 };
 
 const ChaperoneWindow = struct {
-    chaperone: OpenVR.Chaperone,
+    scene_color: [4]f32 = .{ 0, 0, 0, 1 },
 
-    fn show(self: ChaperoneWindow) void {
+    fn show(
+        self: *ChaperoneWindow,
+        chaperone: OpenVR.Chaperone,
+    ) void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
-            readOnlyText("calibration state", @tagName(self.chaperone.getCalibrationState()));
+            readOnlyText("calibration state", @tagName(chaperone.getCalibrationState()));
             {
-                if (self.chaperone.getPlayAreaSize()) |play_area_size| {
+                if (chaperone.getPlayAreaSize()) |play_area_size| {
                     readOnlyFloat2("play area size: [x meters, z meters]", .{ play_area_size.x, play_area_size.z });
                 } else {
                     readOnlyText("play area size: [x meters, z meters]", "unavailable");
                 }
             }
+            {
+                if (chaperone.getPlayAreaRect()) |play_area_rect| {
+                    readOnlyFloat3("play area rect corners: [x meters, y meters, z meters]##corners[0]", play_area_rect.corners[0].v);
+                    readOnlyFloat3("##corners[1]", play_area_rect.corners[1].v);
+                    readOnlyFloat3("##corners[2]", play_area_rect.corners[2].v);
+                    readOnlyFloat3("##corners[3]", play_area_rect.corners[3].v);
+                } else {
+                    readOnlyText("play area rect", "unavailable");
+                }
+            }
             if (zgui.button("reload info", .{})) {
-                self.chaperone.reloadInfo();
+                chaperone.reloadInfo();
             }
             {
                 zgui.separatorText("Bounds");
-                readOnlyCheckbox("visible", self.chaperone.areBoundsVisible());
-                if (zgui.button("force visible", .{})) {
-                    self.chaperone.forceBoundsVisible(true);
+                {
+                    _ = zgui.colorEdit4("scene color", .{ .col = &self.scene_color, .flags = .{ .float = true } });
+                    zgui.sameLine(.{});
+                    if (zgui.button("set scene color", .{})) {
+                        chaperone.setSceneColor(@bitCast(self.scene_color));
+                    }
                 }
+                readOnlyCheckbox("visible", chaperone.areBoundsVisible());
+                zgui.sameLine(.{});
+                if (zgui.button("force visible", .{})) {
+                    chaperone.forceBoundsVisible(true);
+                }
+                zgui.sameLine(.{});
                 if (zgui.button("force invisible", .{})) {
-                    self.chaperone.forceBoundsVisible(false);
+                    chaperone.forceBoundsVisible(false);
                 }
             }
             {
                 zgui.separatorText("Pose");
                 var origin: OpenVR.TrackingUniverseOrigin = .seated;
                 _ = zgui.comboFromEnum("origin", &origin);
+                zgui.sameLine(.{});
                 if (zgui.button("reset zero", .{})) {
-                    self.chaperone.resetZeroPose(origin);
+                    chaperone.resetZeroPose(origin);
                 }
             }
         }
@@ -515,6 +542,7 @@ const OpenVRWindow = struct {
 
     chaperone_init_error: OpenVR.InitError = OpenVR.InitError.None,
     chaperone: ?OpenVR.Chaperone = null,
+    chaperone_window: ChaperoneWindow = .{},
 
     compositor_init_error: OpenVR.InitError = OpenVR.InitError.None,
     compositor: ?OpenVR.Compositor = null,
@@ -607,8 +635,7 @@ const OpenVRWindow = struct {
             try system_window.show(allocator);
         }
         if (self.chaperone) |chaperone| {
-            const chaperone_window = ChaperoneWindow{ .chaperone = chaperone };
-            chaperone_window.show();
+            self.chaperone_window.show(chaperone);
         }
         if (self.compositor) |compositor| {
             const compositor_window = CompositorWindow{ .compositor = compositor };
