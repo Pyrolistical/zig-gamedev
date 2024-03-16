@@ -303,6 +303,31 @@ const DisplayWindow = struct {
     }
 };
 
+fn readOnlyCheckbox(label: [:0]const u8, v: bool) void {
+    zgui.beginDisabled(.{ .disabled = true });
+    defer zgui.endDisabled();
+    _ = zgui.checkbox(label, .{ .v = @constCast(&v) });
+}
+
+fn readOnlyScalar(label: [:0]const u8, comptime T: type, v: T) void {
+    _ = zgui.inputScalar(label, T, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
+}
+
+fn readOnlyText(label: [:0]const u8, v: []const u8) void {
+    _ = zgui.inputText(label, .{ .buf = @constCast(v), .flags = .{ .read_only = true } });
+}
+
+fn readOnlyFloat(label: [:0]const u8, v: f32) void {
+    _ = zgui.inputFloat(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
+}
+
+fn readOnlyInt(label: [:0]const u8, v: i32) void {
+    _ = zgui.inputInt(label, .{ .v = @constCast(&v), .step = 0, .flags = .{ .read_only = true } });
+}
+
+fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
+    _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
+}
 const OpenVRWindow = struct {
     init_error: OpenVR.InitError = OpenVR.InitError.None,
     openvr: ?OpenVR = null,
@@ -345,28 +370,22 @@ const OpenVRWindow = struct {
                     self.compositor = null;
                     return;
                 }
-                {
-                    zgui.beginDisabled(.{ .disabled = true });
-                    defer zgui.endDisabled();
-                    _ = zgui.checkbox("head mounted display present", .{ .v = @constCast(&openvr.isHmdPresent()) });
-                    _ = zgui.checkbox("runtime installed", .{ .v = @constCast(&openvr.isRuntimeInstalled()) });
-                }
+
+                readOnlyCheckbox("head mounted display present", openvr.isHmdPresent());
+                readOnlyCheckbox("runtime installed", openvr.isRuntimeInstalled());
 
                 zgui.separatorText("System");
                 if (self.system) |system| {
-                    zgui.beginDisabled(.{ .disabled = true });
-                    defer zgui.endDisabled();
-
                     {
                         zgui.text("recommended render target size", .{});
                         zgui.indent(.{ .indent_w = 30.0 });
                         defer zgui.unindent(.{ .indent_w = 30.0 });
                         const recommended_render_target_size = system.getRecommendedRenderTargetSize();
-                        _ = zgui.inputScalar("width", u32, .{ .v = @constCast(&recommended_render_target_size.width) });
-                        _ = zgui.inputScalar("height", u32, .{ .v = @constCast(&recommended_render_target_size.height) });
+                        readOnlyScalar("width", u32, recommended_render_target_size.width);
+                        readOnlyScalar("height", u32, recommended_render_target_size.height);
                     }
 
-                    _ = zgui.inputText("runtime version", .{ .buf = @constCast(system.getRuntimeVersion()) });
+                    readOnlyText("runtime version", system.getRuntimeVersion());
                     zgui.separatorText("head mounted display properties");
                     {
                         zgui.indent(.{ .indent_w = 30.0 });
@@ -378,9 +397,9 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.checkbox(field.name ++ ": bool##tracked device property", .{ .v = @constCast(&v) });
+                                readOnlyCheckbox(field.name ++ ": bool##tracked device property", v);
                             } else {
-                                _ = zgui.inputText(field.name ++ ": bool##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                                readOnlyText(field.name ++ ": bool##tracked device property", "Unknown property/not yet available");
                             }
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Float).Enum.fields) |field| {
@@ -390,9 +409,9 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.inputFloat(field.name ++ ": f32##tracked device property", .{ .v = @constCast(&v) });
+                                readOnlyFloat(field.name ++ ": f32##tracked device property", v);
                             } else {
-                                _ = zgui.inputText(field.name ++ ": f32##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                                readOnlyText(field.name ++ ": f32##tracked device property", "Unknown property/not yet available");
                             }
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Int32).Enum.fields) |field| {
@@ -402,9 +421,9 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.inputInt(field.name ++ ": i32##tracked device property", .{ .v = @constCast(&v), .step = 0 });
+                                readOnlyInt(field.name ++ ": i32##tracked device property", v);
                             } else {
-                                _ = zgui.inputText(field.name ++ ": i32##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                                readOnlyText(field.name ++ ": i32##tracked device property", "Unknown property/not yet available");
                             }
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Uint64).Enum.fields) |field| {
@@ -414,9 +433,9 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.inputScalar(field.name ++ ": u64##tracked device property", u64, .{ .v = @constCast(&v) });
+                                readOnlyScalar(field.name ++ ": u64##tracked device property", u64, v);
                             } else {
-                                _ = zgui.inputText(field.name ++ ": u64##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                                readOnlyText(field.name ++ ": u64##tracked device property", "Unknown property/not yet available");
                             }
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
@@ -426,7 +445,7 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             defer if (value) |v| allocator.free(v);
-                            _ = zgui.inputText(field.name ++ ": string##tracked device property", .{ .buf = @constCast(value orelse "Unknown property/not yet available") });
+                            readOnlyText(field.name ++ ": string##tracked device property", value orelse "Unknown property/not yet available");
                         }
                         inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Matrix34).Enum.fields) |field| {
                             const value: ?OpenVR.Matrix34 = system.getTrackedDeviceProperty(OpenVR.Matrix34, 0, @enumFromInt(field.value)) catch |err| switch (err) {
@@ -435,11 +454,34 @@ const OpenVRWindow = struct {
                                 else => return err,
                             };
                             if (value) |v| {
-                                _ = zgui.inputFloat4(field.name ++ ": Matrix34##tracked device property row 0", .{ .v = @constCast(&v.m[0]) });
-                                _ = zgui.inputFloat4("##tracked device property row 1", .{ .v = @constCast(&v.m[1]) });
-                                _ = zgui.inputFloat4("##tracked device property row 2", .{ .v = @constCast(&v.m[2]) });
+                                readOnlyFloat4(field.name ++ ": Matrix34##tracked device property row 0", v.m[0]);
+                                readOnlyFloat4("##tracked device property row 1", v.m[1]);
+                                readOnlyFloat4("##tracked device property row 2", v.m[2]);
                             } else {
-                                _ = zgui.inputText(field.name ++ ": Matrix34##tracked device property", .{ .buf = @constCast("Unknown property/not yet available") });
+                                readOnlyText(field.name ++ ": Matrix34##tracked device property", "Unknown property/not yet available");
+                            }
+                        }
+                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Array.Float).Enum.fields) |field| {
+                            const value: ?[]f32 = system.allocArrayTrackedDeviceProperty(f32, allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.Array.Float, @enumFromInt(field.value))) catch |err| switch (err) {
+                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                                else => return err,
+                            };
+                            defer if (value) |v| allocator.free(v);
+                            if (value) |v| {
+                                if (zgui.collapsingHeader(field.name ++ ": []f32##tracked device property", .{})) {
+                                    if (v.len > 0) {
+                                        for (v, 0..) |f, i| {
+                                            zgui.pushIntId(@intCast(i));
+                                            defer zgui.popId();
+                                            readOnlyFloat(field.name ++ ": []f32##tracked device property row", f);
+                                        }
+                                    } else {
+                                        zgui.text("empty", .{});
+                                    }
+                                }
+                            } else {
+                                readOnlyText(field.name ++ ": []f32##tracked device property", "Unknown property/not yet available");
                             }
                         }
                     }
@@ -458,10 +500,7 @@ const OpenVRWindow = struct {
                     defer zgui.endDisabled();
                     zgui.separatorText("Chaperone");
                     if (self.chaperone) |chaperone| {
-                        zgui.beginDisabled(.{ .disabled = true });
-                        defer zgui.endDisabled();
-
-                        _ = zgui.inputText("calibration state", .{ .buf = @constCast(@tagName(chaperone.getCalibrationState())) });
+                        readOnlyText("calibration state", @tagName(chaperone.getCalibrationState()));
                     } else {
                         if (zgui.button("init", .{})) {
                             self.chaperone_init_error = OpenVR.InitError.None;
@@ -478,12 +517,9 @@ const OpenVRWindow = struct {
                     defer zgui.endDisabled();
                     zgui.separatorText("Compositor");
                     if (self.compositor) |compositor| {
-                        zgui.beginDisabled(.{ .disabled = true });
-                        defer zgui.endDisabled();
-
-                        _ = zgui.checkbox("fullscreen", .{ .v = @constCast(&compositor.isFullscreen()) });
-                        _ = zgui.checkbox("motion smoothing enabled", .{ .v = @constCast(&compositor.isMotionSmoothingEnabled()) });
-                        _ = zgui.checkbox("motion smoothing supported", .{ .v = @constCast(&compositor.isMotionSmoothingSupported()) });
+                        readOnlyCheckbox("fullscreen", compositor.isFullscreen());
+                        readOnlyCheckbox("motion smoothing enabled", compositor.isMotionSmoothingEnabled());
+                        readOnlyCheckbox("motion smoothing supported", compositor.isMotionSmoothingSupported());
                     } else {
                         if (zgui.button("init", .{})) {
                             self.compositor_init_error = OpenVR.InitError.None;

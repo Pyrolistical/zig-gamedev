@@ -297,7 +297,7 @@ pub const TrackedDeviceProperty = enum(i32) {
             i32 => TrackedDeviceProperty.Int32,
             u64 => TrackedDeviceProperty.Uint64,
             common.Matrix34 => TrackedDeviceProperty.Matrix34,
-            else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
+            else => @compileError("T must be one of bool, f32, i32, u64, Matrix34"),
         };
     }
 
@@ -534,6 +534,33 @@ pub const TrackedDeviceProperty = enum(i32) {
         camera_distortion_function_int32 = @intFromEnum(TrackedDeviceProperty.camera_distortion_function_int32_array),
         camera_distortion_coefficients_float = @intFromEnum(TrackedDeviceProperty.camera_distortion_coefficients_float_array),
         display_available_frame_rates_float = @intFromEnum(TrackedDeviceProperty.display_available_frame_rates_float_array),
+
+        pub fn fromType(comptime T: type) type {
+            return switch (T) {
+                f32 => TrackedDeviceProperty.Array.Float,
+                i32 => TrackedDeviceProperty.Array.Int32,
+                Self.Vector4 => TrackedDeviceProperty.Array.Vector4,
+                common.Matrix34 => TrackedDeviceProperty.Array.Matrix34,
+                else => @compileError("T must be one of f32, i32, Vector4, Matrix34"),
+            };
+        }
+
+        pub const Float = enum(i32) {
+            camera_distortion_coefficients = @intFromEnum(TrackedDeviceProperty.camera_distortion_coefficients_float_array),
+            display_available_frame_rates = @intFromEnum(TrackedDeviceProperty.display_available_frame_rates_float_array),
+        };
+
+        pub const Int32 = enum(i32) {
+            camera_distortion_function = @intFromEnum(TrackedDeviceProperty.camera_distortion_function_int32_array),
+        };
+
+        pub const Vector4 = enum(i32) {
+            camera_white_balance = @intFromEnum(TrackedDeviceProperty.camera_white_balance_vector4_array),
+        };
+
+        pub const Matrix34 = enum(i32) {
+            camera_to_head_transforms = @intFromEnum(TrackedDeviceProperty.camera_to_head_transforms_matrix34_array),
+        };
     };
 };
 
@@ -1159,7 +1186,7 @@ pub fn getTrackedDeviceProperty(self: Self, comptime T: type, device_index: comm
     return result;
 }
 
-pub const PropertyTypeTagCode = enum(i32) {
+pub const PropertyTypeTagCode = enum(u32) {
     invalid = 0,
     float = 1,
     int32 = 2,
@@ -1202,21 +1229,22 @@ pub const PropertyTypeTagCode = enum(i32) {
     }
 };
 
-pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty) TrackedPropertyError![]T {
+pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.fromType(T)) TrackedPropertyError![]T {
     var property_error: TrackedPropertyErrorCode = undefined;
-    const buffer_length = self.function_table.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), null, 0, &property_error);
+    const buffer_length = self.function_table.GetArrayTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), PropertyTypeTagCode.fromType(T), null, 0, &property_error);
     property_error.maybe() catch |err| switch (err) {
         TrackedPropertyError.BufferTooSmall => {},
         else => return err,
     };
-
     const buffer = try allocator.alloc(u8, buffer_length);
 
-    property_error = undefined;
-    _ = self.function_table.GetArrayTrackedDeviceProperty(device_index, property, PropertyTypeTagCode.fromType(T), @ptrCast(buffer.ptr), buffer_length, &property_error);
-    try property_error.maybe();
+    if (buffer_length > 0) {
+        property_error = undefined;
+        _ = self.function_table.GetArrayTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), PropertyTypeTagCode.fromType(T), @ptrCast(buffer.ptr), buffer_length, &property_error);
+        try property_error.maybe();
+    }
 
-    return @ptrCast(buffer);
+    return @alignCast(std.mem.bytesAsSlice(T, buffer));
 }
 
 pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.String) TrackedPropertyError![]u8 {
@@ -1228,10 +1256,11 @@ pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator
     };
 
     const buffer = try allocator.alloc(u8, buffer_length);
-
-    property_error = undefined;
-    _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, @ptrCast(buffer.ptr), buffer_length, &property_error);
-    try property_error.maybe();
+    if (buffer_length > 0) {
+        property_error = undefined;
+        _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, @ptrCast(buffer.ptr), buffer_length, &property_error);
+        try property_error.maybe();
+    }
 
     return buffer;
 }
@@ -1369,7 +1398,7 @@ pub const FunctionTable = extern struct {
     GetInt32TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) i32,
     GetUint64TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) u64,
     GetMatrix34TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) common.Matrix34,
-    GetArrayTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTag, ?*anyopaque, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
+    GetArrayTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTagCode, ?*anyopaque, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
     GetStringTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty.String, ?*u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
     GetPropErrorNameFromEnum: *const fn (TrackedPropertyErrorCode) callconv(.C) [*c]u8,
     PollNextEvent: *const fn (*Event, u32) callconv(.C) bool,
