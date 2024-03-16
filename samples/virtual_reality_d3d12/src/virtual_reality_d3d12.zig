@@ -34,6 +34,7 @@ const Surface = struct {
             zglfw.windowHintTyped(.refresh_rate, mvm.video_mode.refresh_rate);
         }
         zglfw.windowHintTyped(.client_api, .no_api);
+        zglfw.windowHintTyped(.maximized, true);
         const window = try zglfw.Window.create(window_width, window_height, window_title, monitor);
 
         const win32_window = zglfw.getWin32Window(window) orelse return error.FailedToGetWin32Window;
@@ -204,7 +205,7 @@ const DisplayWindow = struct {
         zgui.setNextWindowSize(.{ .w = 600, .h = 500, .cond = .first_use_ever });
 
         defer zgui.end();
-        if (zgui.begin("Display", .{})) {
+        if (zgui.begin("Display", .{ .flags = .{ .always_auto_resize = true } })) {
             {
                 {
                     var frame_time_node = try allocator.create(XyData.Node);
@@ -328,6 +329,151 @@ fn readOnlyInt(label: [:0]const u8, v: i32) void {
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
+
+const SystemWindow = struct {
+    system: OpenVR.System,
+
+    fn show(self: SystemWindow, allocator: std.mem.Allocator) !void {
+        zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
+        defer zgui.end();
+        if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
+            {
+                zgui.text("recommended render target size", .{});
+                zgui.indent(.{ .indent_w = 30.0 });
+                defer zgui.unindent(.{ .indent_w = 30.0 });
+                const recommended_render_target_size = self.system.getRecommendedRenderTargetSize();
+                readOnlyScalar("width", u32, recommended_render_target_size.width);
+                readOnlyScalar("height", u32, recommended_render_target_size.height);
+            }
+
+            readOnlyText("runtime version", self.system.getRuntimeVersion());
+            zgui.separatorText("head mounted display properties");
+            {
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
+                    const value: ?bool = self.system.getTrackedDeviceProperty(bool, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    if (value) |v| {
+                        readOnlyCheckbox(field.name ++ ": bool##tracked device property", v);
+                    } else {
+                        readOnlyText(field.name ++ ": bool##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Float).Enum.fields) |field| {
+                    const value: ?f32 = self.system.getTrackedDeviceProperty(f32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    if (value) |v| {
+                        readOnlyFloat(field.name ++ ": f32##tracked device property", v);
+                    } else {
+                        readOnlyText(field.name ++ ": f32##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Int32).Enum.fields) |field| {
+                    const value: ?i32 = self.system.getTrackedDeviceProperty(i32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    if (value) |v| {
+                        readOnlyInt(field.name ++ ": i32##tracked device property", v);
+                    } else {
+                        readOnlyText(field.name ++ ": i32##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Uint64).Enum.fields) |field| {
+                    const value: ?u64 = self.system.getTrackedDeviceProperty(u64, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    if (value) |v| {
+                        readOnlyScalar(field.name ++ ": u64##tracked device property", u64, v);
+                    } else {
+                        readOnlyText(field.name ++ ": u64##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
+                    const value: ?[]u8 = self.system.allocStringTrackedDeviceProperty(allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.String, @enumFromInt(field.value))) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    defer if (value) |v| allocator.free(v);
+                    readOnlyText(field.name ++ ": string##tracked device property", value orelse "Unknown property/not yet available");
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Matrix34).Enum.fields) |field| {
+                    const value: ?OpenVR.Matrix34 = self.system.getTrackedDeviceProperty(OpenVR.Matrix34, 0, @enumFromInt(field.value)) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    if (value) |v| {
+                        readOnlyFloat4(field.name ++ ": Matrix34##tracked device property row 0", v.m[0]);
+                        readOnlyFloat4("##tracked device property row 1", v.m[1]);
+                        readOnlyFloat4("##tracked device property row 2", v.m[2]);
+                    } else {
+                        readOnlyText(field.name ++ ": Matrix34##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Array.Float).Enum.fields) |field| {
+                    const value: ?[]f32 = self.system.allocArrayTrackedDeviceProperty(f32, allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.Array.Float, @enumFromInt(field.value))) catch |err| switch (err) {
+                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
+                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
+                        else => return err,
+                    };
+                    defer if (value) |v| allocator.free(v);
+                    if (value) |v| {
+                        if (zgui.collapsingHeader(field.name ++ ": []f32##tracked device property", .{})) {
+                            if (v.len > 0) {
+                                for (v, 0..) |f, i| {
+                                    zgui.pushIntId(@intCast(i));
+                                    defer zgui.popId();
+                                    readOnlyFloat(field.name ++ ": []f32##tracked device property row", f);
+                                }
+                            } else {
+                                zgui.text("empty", .{});
+                            }
+                        }
+                    } else {
+                        readOnlyText(field.name ++ ": []f32##tracked device property", "Unknown property/not yet available");
+                    }
+                }
+            }
+        }
+    }
+};
+
+const ChaperoneWindow = struct {
+    chaperone: OpenVR.Chaperone,
+
+    fn show(self: ChaperoneWindow) void {
+        zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
+        defer zgui.end();
+        if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
+            readOnlyText("calibration state", @tagName(self.chaperone.getCalibrationState()));
+        }
+    }
+};
+
+const CompositorWindow = struct {
+    compositor: OpenVR.Compositor,
+
+    fn show(self: CompositorWindow) void {
+        zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
+        defer zgui.end();
+        if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
+            readOnlyCheckbox("fullscreen", self.compositor.isFullscreen());
+            readOnlyCheckbox("motion smoothing enabled", self.compositor.isMotionSmoothingEnabled());
+            readOnlyCheckbox("motion smoothing supported", self.compositor.isMotionSmoothingSupported());
+        }
+    }
+};
+
 const OpenVRWindow = struct {
     init_error: OpenVR.InitError = OpenVR.InitError.None,
     openvr: ?OpenVR = null,
@@ -356,11 +502,10 @@ const OpenVRWindow = struct {
     }
 
     fn show(self: *OpenVRWindow, allocator: std.mem.Allocator) !void {
-        zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
-        zgui.setNextWindowSize(.{ .w = 1000, .h = 1000, .cond = .first_use_ever });
+        zgui.setNextWindowPos(.{ .x = 0, .y = 0, .cond = .first_use_ever });
 
         defer zgui.end();
-        if (zgui.begin("OpenVR", .{})) {
+        if (zgui.begin("OpenVR", .{ .flags = .{ .always_auto_resize = true } })) {
             if (self.openvr) |openvr| {
                 if (zgui.button("shutdown", .{})) {
                     openvr.deinit();
@@ -374,161 +519,44 @@ const OpenVRWindow = struct {
                 readOnlyCheckbox("head mounted display present", openvr.isHmdPresent());
                 readOnlyCheckbox("runtime installed", openvr.isRuntimeInstalled());
 
-                zgui.separatorText("System");
-                if (self.system) |system| {
-                    {
-                        zgui.text("recommended render target size", .{});
-                        zgui.indent(.{ .indent_w = 30.0 });
-                        defer zgui.unindent(.{ .indent_w = 30.0 });
-                        const recommended_render_target_size = system.getRecommendedRenderTargetSize();
-                        readOnlyScalar("width", u32, recommended_render_target_size.width);
-                        readOnlyScalar("height", u32, recommended_render_target_size.height);
-                    }
-
-                    readOnlyText("runtime version", system.getRuntimeVersion());
-                    zgui.separatorText("head mounted display properties");
-                    {
-                        zgui.indent(.{ .indent_w = 30.0 });
-                        defer zgui.unindent(.{ .indent_w = 30.0 });
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
-                            const value: ?bool = system.getTrackedDeviceProperty(bool, 0, @enumFromInt(field.value)) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            if (value) |v| {
-                                readOnlyCheckbox(field.name ++ ": bool##tracked device property", v);
-                            } else {
-                                readOnlyText(field.name ++ ": bool##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Float).Enum.fields) |field| {
-                            const value: ?f32 = system.getTrackedDeviceProperty(f32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            if (value) |v| {
-                                readOnlyFloat(field.name ++ ": f32##tracked device property", v);
-                            } else {
-                                readOnlyText(field.name ++ ": f32##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Int32).Enum.fields) |field| {
-                            const value: ?i32 = system.getTrackedDeviceProperty(i32, 0, @enumFromInt(field.value)) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            if (value) |v| {
-                                readOnlyInt(field.name ++ ": i32##tracked device property", v);
-                            } else {
-                                readOnlyText(field.name ++ ": i32##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Uint64).Enum.fields) |field| {
-                            const value: ?u64 = system.getTrackedDeviceProperty(u64, 0, @enumFromInt(field.value)) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            if (value) |v| {
-                                readOnlyScalar(field.name ++ ": u64##tracked device property", u64, v);
-                            } else {
-                                readOnlyText(field.name ++ ": u64##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
-                            const value: ?[]u8 = system.allocStringTrackedDeviceProperty(allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.String, @enumFromInt(field.value))) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            defer if (value) |v| allocator.free(v);
-                            readOnlyText(field.name ++ ": string##tracked device property", value orelse "Unknown property/not yet available");
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Matrix34).Enum.fields) |field| {
-                            const value: ?OpenVR.Matrix34 = system.getTrackedDeviceProperty(OpenVR.Matrix34, 0, @enumFromInt(field.value)) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            if (value) |v| {
-                                readOnlyFloat4(field.name ++ ": Matrix34##tracked device property row 0", v.m[0]);
-                                readOnlyFloat4("##tracked device property row 1", v.m[1]);
-                                readOnlyFloat4("##tracked device property row 2", v.m[2]);
-                            } else {
-                                readOnlyText(field.name ++ ": Matrix34##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                        inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Array.Float).Enum.fields) |field| {
-                            const value: ?[]f32 = system.allocArrayTrackedDeviceProperty(f32, allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.Array.Float, @enumFromInt(field.value))) catch |err| switch (err) {
-                                OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                                OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                                else => return err,
-                            };
-                            defer if (value) |v| allocator.free(v);
-                            if (value) |v| {
-                                if (zgui.collapsingHeader(field.name ++ ": []f32##tracked device property", .{})) {
-                                    if (v.len > 0) {
-                                        for (v, 0..) |f, i| {
-                                            zgui.pushIntId(@intCast(i));
-                                            defer zgui.popId();
-                                            readOnlyFloat(field.name ++ ": []f32##tracked device property row", f);
-                                        }
-                                    } else {
-                                        zgui.text("empty", .{});
-                                    }
-                                }
-                            } else {
-                                readOnlyText(field.name ++ ": []f32##tracked device property", "Unknown property/not yet available");
-                            }
-                        }
-                    }
-                } else {
-                    if (zgui.button("init", .{})) {
+                if (self.system == null) {
+                    if (zgui.button("init System", .{})) {
                         self.system_init_error = OpenVR.InitError.None;
                         self.system = openvr.system() catch |err| system: {
                             self.system_init_error = err;
                             break :system null;
                         };
                     }
-                    zgui.text("init error: {!}", .{self.system_init_error});
+                    zgui.text("System init error: {!}", .{self.system_init_error});
                 }
+                zgui.newLine();
                 {
                     zgui.beginDisabled(.{ .disabled = self.system == null });
                     defer zgui.endDisabled();
-                    zgui.separatorText("Chaperone");
-                    if (self.chaperone) |chaperone| {
-                        readOnlyText("calibration state", @tagName(chaperone.getCalibrationState()));
-                    } else {
-                        if (zgui.button("init", .{})) {
+                    if (self.chaperone == null) {
+                        if (zgui.button("init Chaperone", .{})) {
                             self.chaperone_init_error = OpenVR.InitError.None;
                             self.chaperone = openvr.chaperone() catch |err| chaperone: {
                                 self.chaperone_init_error = err;
                                 break :chaperone null;
                             };
                         }
-                        zgui.text("init error: {!}", .{self.chaperone_init_error});
+                        zgui.text("Chaperone init error: {!}", .{self.chaperone_init_error});
                     }
                 }
+                zgui.newLine();
                 {
                     zgui.beginDisabled(.{ .disabled = self.system == null or self.chaperone == null });
                     defer zgui.endDisabled();
-                    zgui.separatorText("Compositor");
-                    if (self.compositor) |compositor| {
-                        readOnlyCheckbox("fullscreen", compositor.isFullscreen());
-                        readOnlyCheckbox("motion smoothing enabled", compositor.isMotionSmoothingEnabled());
-                        readOnlyCheckbox("motion smoothing supported", compositor.isMotionSmoothingSupported());
-                    } else {
-                        if (zgui.button("init", .{})) {
+                    if (self.compositor == null) {
+                        if (zgui.button("init Compositor", .{})) {
                             self.compositor_init_error = OpenVR.InitError.None;
                             self.compositor = openvr.compositor() catch |err| compositor: {
                                 self.compositor_init_error = err;
                                 break :compositor null;
                             };
                         }
-                        zgui.text("init error: {!}", .{self.compositor_init_error});
+                        zgui.text("Compositor init error: {!}", .{self.compositor_init_error});
                     }
                 }
             } else {
@@ -541,6 +569,18 @@ const OpenVRWindow = struct {
                 }
                 zgui.text("init error: {!}", .{self.init_error});
             }
+        }
+        if (self.system) |system| {
+            const system_window = SystemWindow{ .system = system };
+            try system_window.show(allocator);
+        }
+        if (self.chaperone) |chaperone| {
+            const chaperone_window = ChaperoneWindow{ .chaperone = chaperone };
+            chaperone_window.show();
+        }
+        if (self.compositor) |compositor| {
+            const compositor_window = CompositorWindow{ .compositor = compositor };
+            compositor_window.show();
         }
     }
 };
