@@ -342,6 +342,11 @@ fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
+fn readOnlyColor4(label: [:0]const u8, v: [4]f32) void {
+    zgui.beginDisabled(.{ .disabled = true });
+    defer zgui.endDisabled();
+    _ = zgui.colorEdit4(label, .{ .col = @constCast(&v), .flags = .{ .float = true } });
+}
 const SystemWindow = struct {
     system: OpenVR.System,
 
@@ -458,11 +463,14 @@ const SystemWindow = struct {
 
 const ChaperoneWindow = struct {
     scene_color: [4]f32 = .{ 0, 0, 0, 1 },
+    bound_colors_count: i32 = 1,
+    collision_bounds_fade_distance: f32 = 0,
 
     fn show(
         self: *ChaperoneWindow,
         chaperone: OpenVR.Chaperone,
-    ) void {
+        allocator: std.mem.Allocator,
+    ) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
@@ -492,9 +500,32 @@ const ChaperoneWindow = struct {
                 {
                     _ = zgui.colorEdit4("scene color", .{ .col = &self.scene_color, .flags = .{ .float = true } });
                     zgui.sameLine(.{});
-                    if (zgui.button("set scene color", .{})) {
+                    if (zgui.button("set##scene color", .{})) {
                         chaperone.setSceneColor(@bitCast(self.scene_color));
                     }
+                }
+                {
+                    zgui.text("Color", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+                    _ = zgui.dragFloat("collision fade distance", .{ .v = &self.collision_bounds_fade_distance, .min = -20, .max = 20 });
+                    _ = zgui.inputInt("bound count", .{ .v = &self.bound_colors_count });
+                    if (self.bound_colors_count < 0) {
+                        self.bound_colors_count = 0;
+                    }
+                    const bounds_color = try chaperone.allocBoundsColor(allocator, self.collision_bounds_fade_distance, @intCast(self.bound_colors_count));
+                    defer bounds_color.deinit(allocator);
+
+                    for (bounds_color.bound_colors, 0..) |bound_color, i| {
+                        zgui.pushIntId(@intCast(i));
+                        defer zgui.popId();
+                        if (i == 0) {
+                            readOnlyColor4("bound##bound color", @bitCast(bound_color));
+                        } else {
+                            readOnlyColor4("##bound color", @bitCast(bound_color));
+                        }
+                    }
+                    readOnlyColor4("camera", @bitCast(bounds_color.camera_color));
                 }
                 readOnlyCheckbox("visible", chaperone.areBoundsVisible());
                 zgui.sameLine(.{});
@@ -635,7 +666,7 @@ const OpenVRWindow = struct {
             try system_window.show(allocator);
         }
         if (self.chaperone) |chaperone| {
-            self.chaperone_window.show(chaperone);
+            try self.chaperone_window.show(chaperone, allocator);
         }
         if (self.compositor) |compositor| {
             const compositor_window = CompositorWindow{ .compositor = compositor };

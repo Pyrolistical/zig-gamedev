@@ -63,11 +63,15 @@ pub fn setSceneColor(self: Self, scene_color: common.Color) void {
 pub const BoundsColor = struct {
     bound_colors: []common.Color,
     camera_color: common.Color,
+
+    pub fn deinit(self: BoundsColor, allocator: std.mem.Allocator) void {
+        allocator.free(self.bound_colors);
+    }
 };
 pub fn allocBoundsColor(self: Self, allocator: std.mem.Allocator, collision_bounds_fade_distance: f32, bound_colors_count: usize) !BoundsColor {
     var bounds_color: BoundsColor = undefined;
-    bounds_color.bound_color = try allocator.alloc(common.Color, bound_colors_count);
-    self.function_table.GetBoundsColor(bounds_color.bound_colors.ptr, bounds_color.bound_colors.len, collision_bounds_fade_distance, &bounds_color.camera_color);
+    bounds_color.bound_colors = try allocator.alloc(common.Color, bound_colors_count);
+    self.function_table.GetBoundsColor(bounds_color.bound_colors.ptr, @intCast(bounds_color.bound_colors.len), collision_bounds_fade_distance, &bounds_color.camera_color);
     return bounds_color;
 }
 
