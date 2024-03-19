@@ -101,15 +101,33 @@ pub fn allocLastPoses(self: Self, allocator: std.mem.Allocator, render_poses_cou
     return poses;
 }
 
-pub fn allocLastPoseForTrackedDeviceIndex(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex) CompositorError![]common.TrackedDevicePose {
-    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
-    var count: usize = 0;
-    const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &tracked_device_poses, &count);
+pub const LastPose = struct {
+    render_pose: common.TrackedDevicePose,
+    game_pose: common.TrackedDevicePose,
+};
+
+pub fn getLastPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError!LastPose {
+    var pose: LastPose = undefined;
+    const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &pose.render_pose, &pose.game_pose);
     try compositor_error.maybe();
 
-    const poses = try allocator.alloc(common.TrackedDevicePose, count);
-    std.mem.copyForwards(tracked_device_poses[0..count], poses);
-    return poses;
+    return pose;
+}
+
+pub fn getLastRenderPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError!common.TrackedDevicePose {
+    var pose: common.TrackedDevicePose = undefined;
+    const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &pose, null);
+    try compositor_error.maybe();
+
+    return pose;
+}
+
+pub fn getLastGamePoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError!common.TrackedDevicePose {
+    var pose: common.TrackedDevicePose = undefined;
+    const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, null, &pose);
+    try compositor_error.maybe();
+
+    return pose;
 }
 
 pub const SubmitFlags = enum(i32) {

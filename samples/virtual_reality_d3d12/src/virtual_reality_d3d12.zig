@@ -571,6 +571,7 @@ fn readOnlyTrackedDevicePose(comptime label: [:0]const u8, pose: OpenVR.TrackedD
 const CompositorWindow = struct {
     last_render_poses_count: i32 = 1,
     last_game_poses_count: i32 = 1,
+    last_pose_device_index: u32 = 0,
 
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
@@ -583,7 +584,7 @@ const CompositorWindow = struct {
             {
                 zgui.separatorText("Poses");
                 {
-                    zgui.text("Last", .{});
+                    zgui.text("Last N", .{});
                     zgui.indent(.{ .indent_w = 30 });
                     defer zgui.unindent(.{ .indent_w = 30 });
                     _ = zgui.inputInt("render poses count", .{ .v = &self.last_render_poses_count });
@@ -634,6 +635,21 @@ const CompositorWindow = struct {
                             }
                         }
                     }
+                }
+                {
+                    zgui.text("Last by device", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+                    _ = zgui.inputScalar("index", u32, .{
+                        .v = &self.last_pose_device_index,
+                        .step = 1,
+                    });
+                    if (self.last_pose_device_index > OpenVR.max_tracked_device_count) {
+                        self.last_pose_device_index = OpenVR.max_tracked_device_count;
+                    }
+                    const last_pose = try compositor.getLastPoseForTrackedDeviceIndex(self.last_pose_device_index);
+                    readOnlyTrackedDevicePose("render##last device render pose", last_pose.render_pose);
+                    readOnlyTrackedDevicePose("game##last device game pose", last_pose.game_pose);
                 }
             }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());
