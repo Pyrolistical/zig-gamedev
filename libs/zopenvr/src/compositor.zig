@@ -69,28 +69,47 @@ pub const CompositorErrorCode = enum(i32) {
     }
 };
 
-pub fn waitGetPoses(self: Self) CompositorError![]common.TrackedDevicePose {
+pub fn allocWaitPoses(self: Self, allocator: std.mem.Allocator) CompositorError![]common.TrackedDevicePose {
     var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
     var count: usize = 0;
     const compositor_error = self.function_table.WaitGetPoses(&tracked_device_poses, &count);
     try compositor_error.maybe();
-    return tracked_device_poses[0..count];
+
+    const poses = try allocator.alloc(common.TrackedDevicePose, count);
+    std.mem.copyForwards(tracked_device_poses[0..count], poses);
+    return poses;
 }
 
-pub fn getLastPoses(self: Self) CompositorError![]common.TrackedDevicePose {
-    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
-    var count: usize = 0;
-    const compositor_error = self.function_table.GetLastPoses(&tracked_device_poses, &count);
+pub const LastPoses = struct {
+    render_poses: []common.TrackedDevicePose,
+    game_poses: []common.TrackedDevicePose,
+
+    pub fn deinit(self: LastPoses, allocator: std.mem.Allocator) void {
+        allocator.free(self.render_poses);
+        allocator.free(self.game_poses);
+    }
+};
+
+pub fn allocLastPoses(self: Self, allocator: std.mem.Allocator, render_poses_count: usize, game_poses_count: usize) (CompositorError || error{OutOfMemory})!LastPoses {
+    const poses = LastPoses{
+        .render_poses = try allocator.alloc(common.TrackedDevicePose, render_poses_count),
+        .game_poses = try allocator.alloc(common.TrackedDevicePose, game_poses_count),
+    };
+    const compositor_error = self.function_table.GetLastPoses(@ptrCast(poses.render_poses.ptr), @intCast(render_poses_count), @ptrCast(poses.game_poses.ptr), @intCast(game_poses_count));
     try compositor_error.maybe();
-    return tracked_device_poses[0..count];
+
+    return poses;
 }
 
-pub fn getLastPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError![]common.TrackedDevicePose {
+pub fn allocLastPoseForTrackedDeviceIndex(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex) CompositorError![]common.TrackedDevicePose {
     var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
     var count: usize = 0;
     const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &tracked_device_poses, &count);
     try compositor_error.maybe();
-    return tracked_device_poses[0..count];
+
+    const poses = try allocator.alloc(common.TrackedDevicePose, count);
+    std.mem.copyForwards(tracked_device_poses[0..count], poses);
+    return poses;
 }
 
 pub const SubmitFlags = enum(i32) {

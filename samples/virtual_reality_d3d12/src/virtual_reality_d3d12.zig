@@ -338,6 +338,11 @@ fn readOnlyFloat3(label: [:0]const u8, v: [3]f32) void {
     _ = zgui.inputFloat3(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
+fn readOnlyMatrix34(comptime label: [:0]const u8, v: OpenVR.Matrix34) void {
+    readOnlyFloat4(label ++ "##v.m[0]", v.m[0]);
+    readOnlyFloat4("##v.m[1] ++ label", v.m[1]);
+    readOnlyFloat4("##v.m[2] ++ label", v.m[2]);
+}
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
@@ -550,16 +555,90 @@ const ChaperoneWindow = struct {
     }
 };
 
-const CompositorWindow = struct {
-    compositor: OpenVR.Compositor,
+fn readOnlyTrackedDevicePose(comptime label: [:0]const u8, pose: OpenVR.TrackedDevicePose) void {
+    if (pose.pose_is_valid) {
+        readOnlyMatrix34("device to absolute tracking##" ++ label, pose.device_to_absolute_tracking);
+        readOnlyFloat3("velocity (meters/second)##" ++ label, pose.velocity.v);
+        readOnlyFloat3("angular velocity (radians/second)##" ++ label, pose.angular_velocity.v);
+        readOnlyText("tracking result##" ++ label, @tagName(pose.tracking_result));
+        readOnlyCheckbox("pose is valid##" ++ label, pose.pose_is_valid);
+        readOnlyCheckbox("device_is_connected##" ++ label, pose.device_is_connected);
+    } else {
+        readOnlyCheckbox("pose is valid##" ++ label, false);
+    }
+}
 
-    fn show(self: CompositorWindow) void {
+const CompositorWindow = struct {
+    last_render_poses_count: i32 = 1,
+    last_game_poses_count: i32 = 1,
+
+    fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
-            readOnlyCheckbox("fullscreen", self.compositor.isFullscreen());
-            readOnlyCheckbox("motion smoothing enabled", self.compositor.isMotionSmoothingEnabled());
-            readOnlyCheckbox("motion smoothing supported", self.compositor.isMotionSmoothingSupported());
+            var origin: OpenVR.TrackingUniverseOrigin = compositor.getTrackingSpace();
+            if (zgui.comboFromEnum("tracking space origin", &origin)) {
+                compositor.setTrackingSpace(origin);
+            }
+            {
+                zgui.separatorText("Poses");
+                {
+                    zgui.text("Last", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+                    _ = zgui.inputInt("render poses count", .{ .v = &self.last_render_poses_count });
+                    if (self.last_render_poses_count < 0) {
+                        self.last_render_poses_count = 0;
+                    }
+                    if (self.last_render_poses_count > OpenVR.max_tracked_device_count) {
+                        self.last_render_poses_count = OpenVR.max_tracked_device_count;
+                    }
+                    _ = zgui.inputInt("game poses count", .{ .v = &self.last_game_poses_count });
+                    if (self.last_game_poses_count < 0) {
+                        self.last_game_poses_count = 0;
+                    }
+                    if (self.last_game_poses_count > OpenVR.max_tracked_device_count) {
+                        self.last_game_poses_count = OpenVR.max_tracked_device_count;
+                    }
+
+                    const last_poses = try compositor.allocLastPoses(allocator, @intCast(self.last_render_poses_count), @intCast(self.last_game_poses_count));
+                    defer last_poses.deinit(allocator);
+
+                    {
+                        zgui.text("Render", .{});
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
+
+                        for (last_poses.render_poses, 0..) |pose, i| {
+                            zgui.pushIntId(@intCast(i));
+                            defer zgui.popId();
+                            if (i == 0) {
+                                readOnlyTrackedDevicePose("pose##last render pose", pose);
+                            } else {
+                                readOnlyTrackedDevicePose("##last render pose", pose);
+                            }
+                        }
+                    }
+                    {
+                        zgui.text("Game", .{});
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
+
+                        for (last_poses.game_poses, 0..) |pose, i| {
+                            zgui.pushIntId(@intCast(i));
+                            defer zgui.popId();
+                            if (i == 0) {
+                                readOnlyTrackedDevicePose("pose##last game pose", pose);
+                            } else {
+                                readOnlyTrackedDevicePose("##last game pose", pose);
+                            }
+                        }
+                    }
+                }
+            }
+            readOnlyCheckbox("fullscreen", compositor.isFullscreen());
+            readOnlyCheckbox("motion smoothing enabled", compositor.isMotionSmoothingEnabled());
+            readOnlyCheckbox("motion smoothing supported", compositor.isMotionSmoothingSupported());
         }
     }
 };
@@ -577,6 +656,7 @@ const OpenVRWindow = struct {
 
     compositor_init_error: OpenVR.InitError = OpenVR.InitError.None,
     compositor: ?OpenVR.Compositor = null,
+    compositor_window: CompositorWindow = .{},
 
     pub fn init() OpenVRWindow {
         return .{};
@@ -669,8 +749,7 @@ const OpenVRWindow = struct {
             try self.chaperone_window.show(chaperone, allocator);
         }
         if (self.compositor) |compositor| {
-            const compositor_window = CompositorWindow{ .compositor = compositor };
-            compositor_window.show();
+            try self.compositor_window.show(compositor, allocator);
         }
     }
 };
