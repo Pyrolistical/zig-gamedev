@@ -569,6 +569,8 @@ fn readOnlyTrackedDevicePose(comptime label: [:0]const u8, pose: OpenVR.TrackedD
 }
 
 const CompositorWindow = struct {
+    wait_render_poses_count: i32 = 1,
+    wait_game_poses_count: i32 = 1,
     last_render_poses_count: i32 = 1,
     last_game_poses_count: i32 = 1,
     last_pose_device_index: u32 = 0,
@@ -584,17 +586,70 @@ const CompositorWindow = struct {
             {
                 zgui.separatorText("Poses");
                 {
-                    zgui.text("Last N", .{});
+                    zgui.text("Wait by count", .{});
                     zgui.indent(.{ .indent_w = 30 });
                     defer zgui.unindent(.{ .indent_w = 30 });
-                    _ = zgui.inputInt("render poses count", .{ .v = &self.last_render_poses_count });
+                    _ = zgui.inputInt("render poses count##wait", .{ .v = &self.wait_render_poses_count });
+                    if (self.wait_render_poses_count < 0) {
+                        self.wait_render_poses_count = 0;
+                    }
+                    if (self.wait_render_poses_count > OpenVR.max_tracked_device_count) {
+                        self.wait_render_poses_count = OpenVR.max_tracked_device_count;
+                    }
+                    _ = zgui.inputInt("game poses count##wait", .{ .v = &self.wait_game_poses_count });
+                    if (self.wait_game_poses_count < 0) {
+                        self.wait_game_poses_count = 0;
+                    }
+                    if (self.wait_game_poses_count > OpenVR.max_tracked_device_count) {
+                        self.wait_game_poses_count = OpenVR.max_tracked_device_count;
+                    }
+
+                    const wait_poses = try compositor.allocWaitPoses(allocator, @intCast(self.wait_render_poses_count), @intCast(self.wait_game_poses_count));
+                    defer wait_poses.deinit(allocator);
+
+                    {
+                        zgui.text("Render", .{});
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
+
+                        for (wait_poses.render_poses, 0..) |pose, i| {
+                            zgui.pushIntId(@intCast(i));
+                            defer zgui.popId();
+                            if (i == 0) {
+                                readOnlyTrackedDevicePose("pose##wait render pose", pose);
+                            } else {
+                                readOnlyTrackedDevicePose("##wait render pose", pose);
+                            }
+                        }
+                    }
+                    {
+                        zgui.text("Game", .{});
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
+
+                        for (wait_poses.game_poses, 0..) |pose, i| {
+                            zgui.pushIntId(@intCast(i));
+                            defer zgui.popId();
+                            if (i == 0) {
+                                readOnlyTrackedDevicePose("pose##wait game pose", pose);
+                            } else {
+                                readOnlyTrackedDevicePose("##wait game pose", pose);
+                            }
+                        }
+                    }
+                }
+                {
+                    zgui.text("Last by count", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+                    _ = zgui.inputInt("render poses count##last", .{ .v = &self.last_render_poses_count });
                     if (self.last_render_poses_count < 0) {
                         self.last_render_poses_count = 0;
                     }
                     if (self.last_render_poses_count > OpenVR.max_tracked_device_count) {
                         self.last_render_poses_count = OpenVR.max_tracked_device_count;
                     }
-                    _ = zgui.inputInt("game poses count", .{ .v = &self.last_game_poses_count });
+                    _ = zgui.inputInt("game poses count##last", .{ .v = &self.last_game_poses_count });
                     if (self.last_game_poses_count < 0) {
                         self.last_game_poses_count = 0;
                     }
@@ -749,7 +804,7 @@ const OpenVRWindow = struct {
             } else {
                 if (zgui.button("init", .{})) {
                     self.init_error = OpenVR.InitError.None;
-                    self.openvr = OpenVR.init(.overlay) catch |err| openvr: {
+                    self.openvr = OpenVR.init(.scene) catch |err| openvr: {
                         self.init_error = err;
                         break :openvr null;
                     };

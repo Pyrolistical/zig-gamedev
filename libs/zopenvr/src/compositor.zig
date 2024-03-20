@@ -69,45 +69,50 @@ pub const CompositorErrorCode = enum(i32) {
     }
 };
 
-pub fn allocWaitPoses(self: Self, allocator: std.mem.Allocator) CompositorError![]common.TrackedDevicePose {
-    var tracked_device_poses: [common.max_tracked_device_count]common.TrackedDevicePose = undefined;
-    var count: usize = 0;
-    const compositor_error = self.function_table.WaitGetPoses(&tracked_device_poses, &count);
+pub fn allocWaitPoses(self: Self, allocator: std.mem.Allocator, render_poses_count: usize, game_poses_count: usize) (CompositorError || error{OutOfMemory})!Poses {
+    const poses = try Poses.allocInit(allocator, render_poses_count, game_poses_count);
+    errdefer poses.deinit(allocator);
+
+    const compositor_error = self.function_table.WaitGetPoses(@ptrCast(poses.render_poses.ptr), @intCast(render_poses_count), @ptrCast(poses.game_poses.ptr), @intCast(game_poses_count));
     try compositor_error.maybe();
 
-    const poses = try allocator.alloc(common.TrackedDevicePose, count);
-    std.mem.copyForwards(tracked_device_poses[0..count], poses);
     return poses;
 }
 
-pub const LastPoses = struct {
+pub const Poses = struct {
     render_poses: []common.TrackedDevicePose,
     game_poses: []common.TrackedDevicePose,
 
-    pub fn deinit(self: LastPoses, allocator: std.mem.Allocator) void {
+    pub fn allocInit(allocator: std.mem.Allocator, render_poses_count: usize, game_poses_count: usize) !Poses {
+        return .{
+            .render_poses = try allocator.alloc(common.TrackedDevicePose, render_poses_count),
+            .game_poses = try allocator.alloc(common.TrackedDevicePose, game_poses_count),
+        };
+    }
+
+    pub fn deinit(self: Poses, allocator: std.mem.Allocator) void {
         allocator.free(self.render_poses);
         allocator.free(self.game_poses);
     }
 };
 
-pub fn allocLastPoses(self: Self, allocator: std.mem.Allocator, render_poses_count: usize, game_poses_count: usize) (CompositorError || error{OutOfMemory})!LastPoses {
-    const poses = LastPoses{
-        .render_poses = try allocator.alloc(common.TrackedDevicePose, render_poses_count),
-        .game_poses = try allocator.alloc(common.TrackedDevicePose, game_poses_count),
-    };
+pub fn allocLastPoses(self: Self, allocator: std.mem.Allocator, render_poses_count: usize, game_poses_count: usize) (CompositorError || error{OutOfMemory})!Poses {
+    const poses = try Poses.allocInit(allocator, render_poses_count, game_poses_count);
+    errdefer poses.deinit(allocator);
+
     const compositor_error = self.function_table.GetLastPoses(@ptrCast(poses.render_poses.ptr), @intCast(render_poses_count), @ptrCast(poses.game_poses.ptr), @intCast(game_poses_count));
     try compositor_error.maybe();
 
     return poses;
 }
 
-pub const LastPose = struct {
+pub const Pose = struct {
     render_pose: common.TrackedDevicePose,
     game_pose: common.TrackedDevicePose,
 };
 
-pub fn getLastPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError!LastPose {
-    var pose: LastPose = undefined;
+pub fn getLastPoseForTrackedDeviceIndex(self: Self, device_index: common.TrackedDeviceIndex) CompositorError!Pose {
+    var pose: Pose = undefined;
     const compositor_error = self.function_table.GetLastPoseForTrackedDeviceIndex(device_index, &pose.render_pose, &pose.game_pose);
     try compositor_error.maybe();
 
