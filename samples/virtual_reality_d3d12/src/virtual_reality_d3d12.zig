@@ -574,6 +574,7 @@ const CompositorWindow = struct {
     last_render_poses_count: i32 = 1,
     last_game_poses_count: i32 = 1,
     last_pose_device_index: u32 = 0,
+    frames_ago: u32 = 0,
 
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
@@ -587,6 +588,9 @@ const CompositorWindow = struct {
                 zgui.separatorText("Poses");
                 {
                     zgui.text("Wait by count", .{});
+                    zgui.pushStrId("allocWaitPoses");
+                    defer zgui.popId();
+
                     zgui.indent(.{ .indent_w = 30 });
                     defer zgui.unindent(.{ .indent_w = 30 });
                     _ = zgui.inputInt("render poses count##wait", .{ .v = &self.wait_render_poses_count });
@@ -609,6 +613,8 @@ const CompositorWindow = struct {
 
                     {
                         zgui.text("Render", .{});
+                        zgui.pushStrId("render");
+                        defer zgui.popId();
                         zgui.indent(.{ .indent_w = 30 });
                         defer zgui.unindent(.{ .indent_w = 30 });
 
@@ -616,14 +622,16 @@ const CompositorWindow = struct {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
                             if (i == 0) {
-                                readOnlyTrackedDevicePose("pose##wait render pose", pose);
+                                readOnlyTrackedDevicePose("pose", pose);
                             } else {
-                                readOnlyTrackedDevicePose("##wait render pose", pose);
+                                readOnlyTrackedDevicePose("", pose);
                             }
                         }
                     }
                     {
                         zgui.text("Game", .{});
+                        zgui.pushStrId("game");
+                        defer zgui.popId();
                         zgui.indent(.{ .indent_w = 30 });
                         defer zgui.unindent(.{ .indent_w = 30 });
 
@@ -631,25 +639,27 @@ const CompositorWindow = struct {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
                             if (i == 0) {
-                                readOnlyTrackedDevicePose("pose##wait game pose", pose);
+                                readOnlyTrackedDevicePose("pose", pose);
                             } else {
-                                readOnlyTrackedDevicePose("##wait game pose", pose);
+                                readOnlyTrackedDevicePose("", pose);
                             }
                         }
                     }
                 }
                 {
                     zgui.text("Last by count", .{});
+                    zgui.pushStrId("allocLastPoses");
+                    defer zgui.popId();
                     zgui.indent(.{ .indent_w = 30 });
                     defer zgui.unindent(.{ .indent_w = 30 });
-                    _ = zgui.inputInt("render poses count##last", .{ .v = &self.last_render_poses_count });
+                    _ = zgui.inputInt("render poses count", .{ .v = &self.last_render_poses_count });
                     if (self.last_render_poses_count < 0) {
                         self.last_render_poses_count = 0;
                     }
                     if (self.last_render_poses_count > OpenVR.max_tracked_device_count) {
                         self.last_render_poses_count = OpenVR.max_tracked_device_count;
                     }
-                    _ = zgui.inputInt("game poses count##last", .{ .v = &self.last_game_poses_count });
+                    _ = zgui.inputInt("game poses count", .{ .v = &self.last_game_poses_count });
                     if (self.last_game_poses_count < 0) {
                         self.last_game_poses_count = 0;
                     }
@@ -662,6 +672,8 @@ const CompositorWindow = struct {
 
                     {
                         zgui.text("Render", .{});
+                        zgui.pushStrId("render");
+                        defer zgui.popId();
                         zgui.indent(.{ .indent_w = 30 });
                         defer zgui.unindent(.{ .indent_w = 30 });
 
@@ -669,14 +681,16 @@ const CompositorWindow = struct {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
                             if (i == 0) {
-                                readOnlyTrackedDevicePose("pose##last render pose", pose);
+                                readOnlyTrackedDevicePose("pose", pose);
                             } else {
-                                readOnlyTrackedDevicePose("##last render pose", pose);
+                                readOnlyTrackedDevicePose("", pose);
                             }
                         }
                     }
                     {
                         zgui.text("Game", .{});
+                        zgui.pushStrId("game");
+                        defer zgui.popId();
                         zgui.indent(.{ .indent_w = 30 });
                         defer zgui.unindent(.{ .indent_w = 30 });
 
@@ -684,15 +698,17 @@ const CompositorWindow = struct {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
                             if (i == 0) {
-                                readOnlyTrackedDevicePose("pose##last game pose", pose);
+                                readOnlyTrackedDevicePose("pose", pose);
                             } else {
-                                readOnlyTrackedDevicePose("##last game pose", pose);
+                                readOnlyTrackedDevicePose("", pose);
                             }
                         }
                     }
                 }
                 {
                     zgui.text("Last by device", .{});
+                    zgui.pushStrId("getLastPoseForTrackedDeviceIndex");
+                    defer zgui.popId();
                     zgui.indent(.{ .indent_w = 30 });
                     defer zgui.unindent(.{ .indent_w = 30 });
                     _ = zgui.inputScalar("index", u32, .{
@@ -703,8 +719,49 @@ const CompositorWindow = struct {
                         self.last_pose_device_index = OpenVR.max_tracked_device_count;
                     }
                     const last_pose = try compositor.getLastPoseForTrackedDeviceIndex(self.last_pose_device_index);
-                    readOnlyTrackedDevicePose("render##last device render pose", last_pose.render_pose);
-                    readOnlyTrackedDevicePose("game##last device game pose", last_pose.game_pose);
+                    readOnlyTrackedDevicePose("render", last_pose.render_pose);
+                    readOnlyTrackedDevicePose("game", last_pose.game_pose);
+                }
+            }
+            {
+                zgui.separatorText("Submit");
+            }
+            {
+                zgui.separatorText("Frame timing");
+                zgui.pushStrId("frame_timing");
+                defer zgui.popId();
+
+                _ = zgui.inputScalar("index", u32, .{
+                    .v = &self.frames_ago,
+                    .step = 1,
+                });
+                if (compositor.getFrameTiming(self.frames_ago)) |frame_timing| {
+                    readOnlyScalar("size", u32, frame_timing.size);
+                    readOnlyScalar("frame_index", u32, frame_timing.frame_index);
+                    readOnlyScalar("num_frame_presents", u32, frame_timing.num_frame_presents);
+                    readOnlyScalar("num_mis_presented", u32, frame_timing.num_mis_presented);
+                    readOnlyScalar("reprojection_flags", u32, frame_timing.reprojection_flags);
+                    readOnlyScalar("system_time_in_seconds", f64, frame_timing.system_time_in_seconds);
+                    readOnlyFloat("pre_submit_gpu_ms", frame_timing.pre_submit_gpu_ms);
+                    readOnlyFloat("post_submit_gpu_ms", frame_timing.post_submit_gpu_ms);
+                    readOnlyFloat("total_render_gpu_ms", frame_timing.total_render_gpu_ms);
+                    readOnlyFloat("compositor_render_gpu_ms", frame_timing.compositor_render_gpu_ms);
+                    readOnlyFloat("compositor_render_cpu_ms", frame_timing.compositor_render_cpu_ms);
+                    readOnlyFloat("compositor_idle_cpu_ms", frame_timing.compositor_idle_cpu_ms);
+                    readOnlyFloat("client_frame_interval_ms", frame_timing.client_frame_interval_ms);
+                    readOnlyFloat("present_call_cpu_ms", frame_timing.present_call_cpu_ms);
+                    readOnlyFloat("wait_for_present_cpu_ms", frame_timing.wait_for_present_cpu_ms);
+                    readOnlyFloat("submit_frame_ms", frame_timing.submit_frame_ms);
+                    readOnlyFloat("wait_get_poses_called_ms", frame_timing.wait_get_poses_called_ms);
+                    readOnlyFloat("new_poses_ready_ms", frame_timing.new_poses_ready_ms);
+                    readOnlyFloat("new_frame_ready_ms", frame_timing.new_frame_ready_ms);
+                    readOnlyFloat("compositor_update_start_ms", frame_timing.compositor_update_start_ms);
+                    readOnlyFloat("compositor_update_end_ms", frame_timing.compositor_update_end_ms);
+                    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
+                    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
+                    readOnlyTrackedDevicePose("pose", frame_timing.pose);
+                    readOnlyScalar("num_v_syncs_ready_for_use", u32, frame_timing.num_v_syncs_ready_for_use);
+                    readOnlyScalar("num_v_syncsto_first_viewe", u32, frame_timing.num_v_syncs_to_first_view);
                 }
             }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());

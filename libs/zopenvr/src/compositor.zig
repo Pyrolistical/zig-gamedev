@@ -135,19 +135,21 @@ pub fn getLastGamePoseForTrackedDeviceIndex(self: Self, device_index: common.Tra
     return pose;
 }
 
-pub const SubmitFlags = enum(i32) {
-    default = 0,
-    lens_distortion_already_applied = 1,
-    gl_render_buffer = 2,
-    reserved = 4,
-    texture_with_pose = 8,
-    texture_with_depth = 16,
-    frame_discontinuty = 32,
-    vulkan_texture_with_array_data = 64,
-    gl_array_texture = 128,
-    is_egl = 256,
-    reserved2 = 32768,
-    reserved3 = 65536,
+pub const SubmitFlags = packed struct(i32) {
+    lens_distortion_already_applied: bool = false,
+    gl_render_buffer: bool = false,
+    reserved: bool = false,
+    texture_with_pose: bool = false,
+    texture_with_depth: bool = false,
+    frame_discontinuty: bool = false,
+    vulkan_texture_with_array_data: bool = false,
+    gl_array_texture: bool = false,
+    is_egl: bool = false,
+
+    _padding: u5 = 0,
+    reserved2: bool = false,
+    reserved3: bool = false,
+    __padding: u16 = 0,
 };
 
 pub const ColorSpace = enum(i32) {
