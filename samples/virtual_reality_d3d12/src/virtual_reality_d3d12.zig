@@ -787,6 +787,38 @@ const CompositorWindow = struct {
                         readOnlyFrameTiming("frame timing", frame_timing);
                     }
                 }
+                readOnlyFloat("frame time remaining", compositor.getFrameTimeRemaining());
+            }
+            {
+                zgui.separatorText("Cumulative stats");
+                zgui.pushStrId("getCumulativeStats");
+                defer zgui.popId();
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
+
+                const cumulative_stats = compositor.getCumulativeStats();
+                readOnlyScalar("pid", u32, cumulative_stats.pid);
+                readOnlyScalar("num_frame_presents", u32, cumulative_stats.num_frame_presents);
+                readOnlyScalar("num_dropped_frames", u32, cumulative_stats.num_dropped_frames);
+                readOnlyScalar("num_reprojected_frames", u32, cumulative_stats.num_reprojected_frames);
+                readOnlyScalar("num_frame_presents_on_startup", u32, cumulative_stats.num_frame_presents_on_startup);
+                readOnlyScalar("num_dropped_frames_on_startup", u32, cumulative_stats.num_dropped_frames_on_startup);
+                readOnlyScalar("num_reprojected_frames_on_startup", u32, cumulative_stats.num_reprojected_frames_on_startup);
+                readOnlyScalar("num_loading", u32, cumulative_stats.num_loading);
+                readOnlyScalar("num_frame_presents_loading", u32, cumulative_stats.num_frame_presents_loading);
+                readOnlyScalar("num_dropped_frames_loading", u32, cumulative_stats.num_dropped_frames_loading);
+                readOnlyScalar("num_reprojected_frames_loading", u32, cumulative_stats.num_reprojected_frames_loading);
+                readOnlyScalar("num_timed_out", u32, cumulative_stats.num_timed_out);
+                readOnlyScalar("num_frame_presents_timed_out", u32, cumulative_stats.num_frame_presents_timed_out);
+                readOnlyScalar("num_dropped_frames_timed_out", u32, cumulative_stats.num_dropped_frames_timed_out);
+                readOnlyScalar("num_reprojected_frames_timed_out", u32, cumulative_stats.num_reprojected_frames_timed_out);
+                readOnlyScalar("num_frame_submits", u32, cumulative_stats.num_frame_submits);
+                readOnlyScalar("sum_compositor_cpu_time_ms", f64, cumulative_stats.sum_compositor_cpu_time_ms);
+                readOnlyScalar("sum_compositor_gpu_time_ms", f64, cumulative_stats.sum_compositor_gpu_time_ms);
+                readOnlyScalar("sum_target_frame_times", f64, cumulative_stats.sum_target_frame_times);
+                readOnlyScalar("sum_application_cpu_time_ms", f64, cumulative_stats.sum_application_cpu_time_ms);
+                readOnlyScalar("sum_application_gpu_time_ms", f64, cumulative_stats.sum_application_gpu_time_ms);
+                readOnlyScalar("num_frames_with_depth", u32, cumulative_stats.num_frames_with_depth);
             }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());
             readOnlyCheckbox("motion smoothing enabled", compositor.isMotionSmoothingEnabled());
