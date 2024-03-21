@@ -615,7 +615,8 @@ const CompositorWindow = struct {
     last_render_poses_count: i32 = 1,
     last_game_poses_count: i32 = 1,
     last_pose_device_index: u32 = 0,
-    frames_ago: u32 = 0,
+    frame_timing_frames_ago: u32 = 0,
+    frame_timing_frames: u32 = 1,
 
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
@@ -753,15 +754,38 @@ const CompositorWindow = struct {
             }
             {
                 zgui.separatorText("Frame timing");
-                zgui.pushStrId("frame_timing");
-                defer zgui.popId();
+                {
+                    zgui.text("One frame ago", .{});
+                    zgui.pushStrId("getFrameTiming");
+                    defer zgui.popId();
 
-                _ = zgui.inputScalar("frames ago", u32, .{
-                    .v = &self.frames_ago,
-                    .step = 1,
-                });
-                if (compositor.getFrameTiming(self.frames_ago)) |frame_timing| {
-                    readOnlyFrameTiming("frame timing", frame_timing);
+                    _ = zgui.inputScalar("ago", u32, .{
+                        .v = &self.frame_timing_frames_ago,
+                        .step = 1,
+                    });
+                    if (compositor.getFrameTiming(self.frame_timing_frames_ago)) |frame_timing| {
+                        readOnlyFrameTiming("frame timing", frame_timing);
+                    }
+                }
+                {
+                    zgui.text("Frames", .{});
+                    zgui.pushStrId("allocFrameTimings");
+                    defer zgui.popId();
+
+                    _ = zgui.inputScalar("frames", u32, .{
+                        .v = &self.frame_timing_frames,
+                        .step = 1,
+                    });
+                    if (self.frame_timing_frames < 1) {
+                        self.frame_timing_frames = 1;
+                    }
+                    const frames = try compositor.allocFrameTimings(allocator, self.frame_timing_frames);
+                    defer allocator.free(frames);
+                    for (frames, 0..) |frame_timing, i| {
+                        zgui.pushIntId(@intCast(i));
+                        defer zgui.popId();
+                        readOnlyFrameTiming("frame timing", frame_timing);
+                    }
                 }
             }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());
