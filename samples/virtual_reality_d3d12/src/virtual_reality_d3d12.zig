@@ -338,8 +338,14 @@ fn readOnlyFloat3(label: [:0]const u8, v: [3]f32) void {
     _ = zgui.inputFloat3(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
-fn readOnlyMatrix34(comptime label: [:0]const u8, v: OpenVR.Matrix34) void {
-    readOnlyFloat4(label ++ "##v.m[0]", v.m[0]);
+fn readOnlyMatrix34(label: [:0]const u8, v: OpenVR.Matrix34) void {
+    zgui.text("{s}", .{label});
+    zgui.pushStrId(label);
+    defer zgui.popId();
+    zgui.indent(.{ .indent_w = 30 });
+    defer zgui.unindent(.{ .indent_w = 30 });
+
+    readOnlyFloat4("##v.m[0]", v.m[0]);
     readOnlyFloat4("##v.m[1] ++ label", v.m[1]);
     readOnlyFloat4("##v.m[2] ++ label", v.m[2]);
 }
@@ -524,11 +530,7 @@ const ChaperoneWindow = struct {
                     for (bounds_color.bound_colors, 0..) |bound_color, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
-                        if (i == 0) {
-                            readOnlyColor4("bound##bound color", @bitCast(bound_color));
-                        } else {
-                            readOnlyColor4("##bound color", @bitCast(bound_color));
-                        }
+                        readOnlyColor4("bound", @bitCast(bound_color));
                     }
                     readOnlyColor4("camera", @bitCast(bounds_color.camera_color));
                 }
@@ -555,17 +557,56 @@ const ChaperoneWindow = struct {
     }
 };
 
-fn readOnlyTrackedDevicePose(comptime label: [:0]const u8, pose: OpenVR.TrackedDevicePose) void {
+fn readOnlyTrackedDevicePose(label: [:0]const u8, pose: OpenVR.TrackedDevicePose) void {
+    zgui.text("{s}", .{label});
+    zgui.pushStrId(label);
+    defer zgui.popId();
+    zgui.indent(.{ .indent_w = 30 });
+    defer zgui.unindent(.{ .indent_w = 30 });
     if (pose.pose_is_valid) {
-        readOnlyMatrix34("device to absolute tracking##" ++ label, pose.device_to_absolute_tracking);
-        readOnlyFloat3("velocity (meters/second)##" ++ label, pose.velocity.v);
-        readOnlyFloat3("angular velocity (radians/second)##" ++ label, pose.angular_velocity.v);
-        readOnlyText("tracking result##" ++ label, @tagName(pose.tracking_result));
-        readOnlyCheckbox("pose is valid##" ++ label, pose.pose_is_valid);
-        readOnlyCheckbox("device_is_connected##" ++ label, pose.device_is_connected);
+        readOnlyMatrix34("device to absolute tracking", pose.device_to_absolute_tracking);
+        readOnlyFloat3("velocity (meters/second)", pose.velocity.v);
+        readOnlyFloat3("angular velocity (radians/second)", pose.angular_velocity.v);
+        readOnlyText("tracking result", @tagName(pose.tracking_result));
+        readOnlyCheckbox("pose is valid", pose.pose_is_valid);
+        readOnlyCheckbox("device_is_connected", pose.device_is_connected);
     } else {
-        readOnlyCheckbox("pose is valid##" ++ label, false);
+        readOnlyCheckbox("pose is valid", false);
     }
+}
+
+fn readOnlyFrameTiming(label: [:0]const u8, frame_timing: OpenVR.Compositor.FrameTiming) void {
+    zgui.text("{s}", .{label});
+    zgui.pushStrId(label);
+    defer zgui.popId();
+    zgui.indent(.{ .indent_w = 30 });
+    defer zgui.unindent(.{ .indent_w = 30 });
+    readOnlyScalar("size", u32, frame_timing.size);
+    readOnlyScalar("frame_index", u32, frame_timing.frame_index);
+    readOnlyScalar("num_frame_presents", u32, frame_timing.num_frame_presents);
+    readOnlyScalar("num_mis_presented", u32, frame_timing.num_mis_presented);
+    readOnlyScalar("reprojection_flags", u32, frame_timing.reprojection_flags);
+    readOnlyScalar("system_time_in_seconds", f64, frame_timing.system_time_in_seconds);
+    readOnlyFloat("pre_submit_gpu_ms", frame_timing.pre_submit_gpu_ms);
+    readOnlyFloat("post_submit_gpu_ms", frame_timing.post_submit_gpu_ms);
+    readOnlyFloat("total_render_gpu_ms", frame_timing.total_render_gpu_ms);
+    readOnlyFloat("compositor_render_gpu_ms", frame_timing.compositor_render_gpu_ms);
+    readOnlyFloat("compositor_render_cpu_ms", frame_timing.compositor_render_cpu_ms);
+    readOnlyFloat("compositor_idle_cpu_ms", frame_timing.compositor_idle_cpu_ms);
+    readOnlyFloat("client_frame_interval_ms", frame_timing.client_frame_interval_ms);
+    readOnlyFloat("present_call_cpu_ms", frame_timing.present_call_cpu_ms);
+    readOnlyFloat("wait_for_present_cpu_ms", frame_timing.wait_for_present_cpu_ms);
+    readOnlyFloat("submit_frame_ms", frame_timing.submit_frame_ms);
+    readOnlyFloat("wait_get_poses_called_ms", frame_timing.wait_get_poses_called_ms);
+    readOnlyFloat("new_poses_ready_ms", frame_timing.new_poses_ready_ms);
+    readOnlyFloat("new_frame_ready_ms", frame_timing.new_frame_ready_ms);
+    readOnlyFloat("compositor_update_start_ms", frame_timing.compositor_update_start_ms);
+    readOnlyFloat("compositor_update_end_ms", frame_timing.compositor_update_end_ms);
+    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
+    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
+    readOnlyTrackedDevicePose("pose", frame_timing.pose);
+    readOnlyScalar("num_v_syncs_ready_for_use", u32, frame_timing.num_v_syncs_ready_for_use);
+    readOnlyScalar("num_v_syncsto_first_viewe", u32, frame_timing.num_v_syncs_to_first_view);
 }
 
 const CompositorWindow = struct {
@@ -621,11 +662,7 @@ const CompositorWindow = struct {
                         for (wait_poses.render_poses, 0..) |pose, i| {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
-                            if (i == 0) {
-                                readOnlyTrackedDevicePose("pose", pose);
-                            } else {
-                                readOnlyTrackedDevicePose("", pose);
-                            }
+                            readOnlyTrackedDevicePose("pose", pose);
                         }
                     }
                     {
@@ -638,11 +675,7 @@ const CompositorWindow = struct {
                         for (wait_poses.game_poses, 0..) |pose, i| {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
-                            if (i == 0) {
-                                readOnlyTrackedDevicePose("pose", pose);
-                            } else {
-                                readOnlyTrackedDevicePose("", pose);
-                            }
+                            readOnlyTrackedDevicePose("pose", pose);
                         }
                     }
                 }
@@ -680,11 +713,7 @@ const CompositorWindow = struct {
                         for (last_poses.render_poses, 0..) |pose, i| {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
-                            if (i == 0) {
-                                readOnlyTrackedDevicePose("pose", pose);
-                            } else {
-                                readOnlyTrackedDevicePose("", pose);
-                            }
+                            readOnlyTrackedDevicePose("pose", pose);
                         }
                     }
                     {
@@ -697,11 +726,7 @@ const CompositorWindow = struct {
                         for (last_poses.game_poses, 0..) |pose, i| {
                             zgui.pushIntId(@intCast(i));
                             defer zgui.popId();
-                            if (i == 0) {
-                                readOnlyTrackedDevicePose("pose", pose);
-                            } else {
-                                readOnlyTrackedDevicePose("", pose);
-                            }
+                            readOnlyTrackedDevicePose("pose", pose);
                         }
                     }
                 }
@@ -731,37 +756,12 @@ const CompositorWindow = struct {
                 zgui.pushStrId("frame_timing");
                 defer zgui.popId();
 
-                _ = zgui.inputScalar("index", u32, .{
+                _ = zgui.inputScalar("frames ago", u32, .{
                     .v = &self.frames_ago,
                     .step = 1,
                 });
                 if (compositor.getFrameTiming(self.frames_ago)) |frame_timing| {
-                    readOnlyScalar("size", u32, frame_timing.size);
-                    readOnlyScalar("frame_index", u32, frame_timing.frame_index);
-                    readOnlyScalar("num_frame_presents", u32, frame_timing.num_frame_presents);
-                    readOnlyScalar("num_mis_presented", u32, frame_timing.num_mis_presented);
-                    readOnlyScalar("reprojection_flags", u32, frame_timing.reprojection_flags);
-                    readOnlyScalar("system_time_in_seconds", f64, frame_timing.system_time_in_seconds);
-                    readOnlyFloat("pre_submit_gpu_ms", frame_timing.pre_submit_gpu_ms);
-                    readOnlyFloat("post_submit_gpu_ms", frame_timing.post_submit_gpu_ms);
-                    readOnlyFloat("total_render_gpu_ms", frame_timing.total_render_gpu_ms);
-                    readOnlyFloat("compositor_render_gpu_ms", frame_timing.compositor_render_gpu_ms);
-                    readOnlyFloat("compositor_render_cpu_ms", frame_timing.compositor_render_cpu_ms);
-                    readOnlyFloat("compositor_idle_cpu_ms", frame_timing.compositor_idle_cpu_ms);
-                    readOnlyFloat("client_frame_interval_ms", frame_timing.client_frame_interval_ms);
-                    readOnlyFloat("present_call_cpu_ms", frame_timing.present_call_cpu_ms);
-                    readOnlyFloat("wait_for_present_cpu_ms", frame_timing.wait_for_present_cpu_ms);
-                    readOnlyFloat("submit_frame_ms", frame_timing.submit_frame_ms);
-                    readOnlyFloat("wait_get_poses_called_ms", frame_timing.wait_get_poses_called_ms);
-                    readOnlyFloat("new_poses_ready_ms", frame_timing.new_poses_ready_ms);
-                    readOnlyFloat("new_frame_ready_ms", frame_timing.new_frame_ready_ms);
-                    readOnlyFloat("compositor_update_start_ms", frame_timing.compositor_update_start_ms);
-                    readOnlyFloat("compositor_update_end_ms", frame_timing.compositor_update_end_ms);
-                    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
-                    readOnlyFloat("compositor_render_start_ms", frame_timing.compositor_render_start_ms);
-                    readOnlyTrackedDevicePose("pose", frame_timing.pose);
-                    readOnlyScalar("num_v_syncs_ready_for_use", u32, frame_timing.num_v_syncs_ready_for_use);
-                    readOnlyScalar("num_v_syncsto_first_viewe", u32, frame_timing.num_v_syncs_to_first_view);
+                    readOnlyFrameTiming("frame timing", frame_timing);
                 }
             }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());
