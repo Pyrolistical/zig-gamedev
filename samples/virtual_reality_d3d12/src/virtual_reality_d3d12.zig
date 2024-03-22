@@ -617,6 +617,9 @@ const CompositorWindow = struct {
     last_pose_device_index: u32 = 0,
     frame_timing_frames_ago: u32 = 0,
     frame_timing_frames: u32 = 1,
+    fade_color_seconds: f32 = 0,
+    fade_color: [4]f32 = [_]f32{ 0, 0, 0, 1 },
+    fade_color_background: bool = false,
 
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
@@ -650,33 +653,41 @@ const CompositorWindow = struct {
                         self.wait_game_poses_count = OpenVR.max_tracked_device_count;
                     }
 
-                    const wait_poses = try compositor.allocWaitPoses(allocator, @intCast(self.wait_render_poses_count), @intCast(self.wait_game_poses_count));
-                    defer wait_poses.deinit(allocator);
+                    if (compositor.allocWaitPoses(allocator, @intCast(self.wait_render_poses_count), @intCast(self.wait_game_poses_count))) |wait_poses| {
+                        defer wait_poses.deinit(allocator);
 
-                    {
-                        zgui.text("Render", .{});
-                        zgui.pushStrId("render");
-                        defer zgui.popId();
-                        zgui.indent(.{ .indent_w = 30 });
-                        defer zgui.unindent(.{ .indent_w = 30 });
-
-                        for (wait_poses.render_poses, 0..) |pose, i| {
-                            zgui.pushIntId(@intCast(i));
+                        {
+                            zgui.text("Render", .{});
+                            zgui.pushStrId("render");
                             defer zgui.popId();
-                            readOnlyTrackedDevicePose("pose", pose);
+                            zgui.indent(.{ .indent_w = 30 });
+                            defer zgui.unindent(.{ .indent_w = 30 });
+
+                            for (wait_poses.render_poses, 0..) |pose, i| {
+                                zgui.pushIntId(@intCast(i));
+                                defer zgui.popId();
+                                readOnlyTrackedDevicePose("pose", pose);
+                            }
                         }
-                    }
-                    {
-                        zgui.text("Game", .{});
-                        zgui.pushStrId("game");
-                        defer zgui.popId();
-                        zgui.indent(.{ .indent_w = 30 });
-                        defer zgui.unindent(.{ .indent_w = 30 });
-
-                        for (wait_poses.game_poses, 0..) |pose, i| {
-                            zgui.pushIntId(@intCast(i));
+                        {
+                            zgui.text("Game", .{});
+                            zgui.pushStrId("game");
                             defer zgui.popId();
-                            readOnlyTrackedDevicePose("pose", pose);
+                            zgui.indent(.{ .indent_w = 30 });
+                            defer zgui.unindent(.{ .indent_w = 30 });
+
+                            for (wait_poses.game_poses, 0..) |pose, i| {
+                                zgui.pushIntId(@intCast(i));
+                                defer zgui.popId();
+                                readOnlyTrackedDevicePose("pose", pose);
+                            }
+                        }
+                    } else |err| {
+                        switch (err) {
+                            error.DoNotHaveFocus => {
+                                zgui.text("does not have focus", .{});
+                            },
+                            else => return err,
                         }
                     }
                 }
@@ -820,7 +831,77 @@ const CompositorWindow = struct {
                 readOnlyScalar("sum_application_gpu_time_ms", f64, cumulative_stats.sum_application_gpu_time_ms);
                 readOnlyScalar("num_frames_with_depth", u32, cumulative_stats.num_frames_with_depth);
             }
+            {
+                zgui.separatorText("Fade");
+                zgui.pushStrId("fade");
+                defer zgui.popId();
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
+
+                _ = zgui.sliderFloat("seconds", .{ .v = &self.fade_color_seconds, .min = 0, .max = 10 });
+                _ = zgui.checkbox("background", .{ .v = &self.fade_color_background });
+
+                {
+                    zgui.separatorText("Color");
+                    zgui.pushStrId("color");
+                    defer zgui.popId();
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyColor4("current", @bitCast(compositor.getCurrentFadeColor(self.fade_color_background)));
+
+                    _ = zgui.colorEdit4("color", .{ .col = &self.fade_color, .flags = .{ .float = true } });
+                    if (zgui.button("fade to color", .{})) {
+                        compositor.fadeToColor(self.fade_color_seconds, self.fade_color[0], self.fade_color[1], self.fade_color[2], self.fade_color[3], self.fade_color_background);
+                    }
+                }
+                {
+                    zgui.separatorText("Grid");
+                    zgui.pushStrId("grid");
+                    defer zgui.popId();
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyFloat("alpha", compositor.getCurrentGridAlpha());
+                    if (zgui.button("fade grid", .{})) {
+                        compositor.fadeGrid(self.fade_color_seconds, self.fade_color_background);
+                    }
+                }
+            }
+            if (zgui.button("bring to front", .{})) {
+                compositor.compositorBringToFront();
+            }
+            if (zgui.button("go to back", .{})) {
+                compositor.compositorGoToBack();
+            }
+            if (zgui.button("quit", .{})) {
+                compositor.compositorQuit();
+            }
             readOnlyCheckbox("fullscreen", compositor.isFullscreen());
+            readOnlyScalar("current scene focus process", u32, compositor.getCurrentSceneFocusProcess());
+            readOnlyScalar("last frame renderer", u32, compositor.getLastFrameRenderer());
+            readOnlyCheckbox("can render scene", compositor.canRenderScene());
+            if (zgui.button("dump images", .{})) {
+                compositor.compositorDumpImages();
+            }
+            readOnlyCheckbox("should app render with low resources", compositor.shouldAppRenderWithLowResources());
+            if (zgui.button("force interleaved reprojection on", .{})) {
+                compositor.forceInterleavedReprojectionOn(true);
+            }
+            zgui.sameLine(.{});
+            if (zgui.button("force interleaved reprojection off", .{})) {
+                compositor.forceInterleavedReprojectionOn(false);
+            }
+            if (zgui.button("force reconnect process", .{})) {
+                compositor.forceReconnectProcess();
+            }
+            if (zgui.button("suspend rendering on", .{})) {
+                compositor.suspendRendering(true);
+            }
+            zgui.sameLine(.{});
+            if (zgui.button("suspend rendering off", .{})) {
+                compositor.suspendRendering(false);
+            }
             readOnlyCheckbox("motion smoothing enabled", compositor.isMotionSmoothingEnabled());
             readOnlyCheckbox("motion smoothing supported", compositor.isMotionSmoothingSupported());
         }

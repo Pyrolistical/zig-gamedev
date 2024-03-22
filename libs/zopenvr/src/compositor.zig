@@ -285,7 +285,30 @@ pub fn getCurrentGridAlpha(self: Self) f32 {
     return self.function_table.GetCurrentGridAlpha();
 }
 
-pub fn setSkyboxOverride(self: Self, textures: []common.Texture) CompositorError!void {
+pub const Skybox = union(enum) {
+    full: extern struct {
+        front: common.Texture,
+        back: common.Texture,
+        left: common.Texture,
+        right: common.Texture,
+        top: common.Texture,
+        bottom: common.Texture,
+    },
+    single_lat_long: common.Texture,
+    stereo_lat_long: extern struct {
+        left: common.Texture,
+        right: common.Texture,
+    },
+
+    pub fn asSlice(self: Skybox) []common.Texture {
+        return switch (self) {
+            else => |skybox| std.mem.bytesAsSlice(common.Texture, std.mem.toBytes(skybox)),
+        };
+    }
+};
+
+pub fn setSkyboxOverride(self: Self, skybox: Skybox) CompositorError!void {
+    const textures = skybox.asSlice();
     const compositor_error = self.function_table.SetSkyboxOverride(textures.ptr, textures.len);
     try compositor_error.maybe();
 }
@@ -322,17 +345,17 @@ pub fn canRenderScene(self: Self) bool {
     return self.function_table.CanRenderScene();
 }
 
-pub fn showMirrorWindow(self: Self) void {
-    self.function_table.ShowMirrorWindow();
-}
+//pub fn showMirrorWindow(self: Self) void {
+//    self.function_table.ShowMirrorWindow();
+//}
 
-pub fn hideMirrorWindow(self: Self) void {
-    self.function_table.HideMirrorWindow();
-}
+//pub fn hideMirrorWindow(self: Self) void {
+//    self.function_table.HideMirrorWindow();
+//}
 
-pub fn isMirrorWindowVisible(self: Self) bool {
-    return self.function_table.IsMirrorWindowVisible();
-}
+//pub fn isMirrorWindowVisible(self: Self) bool {
+//    return self.function_table.IsMirrorWindowVisible();
+//}
 
 pub fn compositorDumpImages(self: Self) void {
     self.function_table.CompositorDumpImages();
