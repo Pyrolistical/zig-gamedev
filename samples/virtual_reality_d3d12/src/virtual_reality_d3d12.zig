@@ -908,6 +908,49 @@ const CompositorWindow = struct {
     }
 };
 
+fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, comptime arg_by_name: anytype) void {
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    const ArgByName = @TypeOf(arg_by_name);
+    const arg_by_name_info = @typeInfo(ArgByName).Struct;
+    comptime var arg_types: [arg_by_name_info.fields.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+    const Args = std.meta.Tuple(&arg_types);
+    comptime var args: Args = undefined;
+    inline for (arg_by_name_info.fields, 0..) |field, i| {
+        args[i] = @field(arg_by_name, field.name);
+    }
+
+    inline for (args, 0..) |_, i| {
+        switch (f_info.params[i].type.?) {
+            OpenVR => {},
+            else => unreachable,
+        }
+    }
+
+    comptime var label: [:0]const u8 = f_name;
+    comptime {
+        label = label ++ "(";
+        for (arg_by_name_info.fields, 0..) |field, i| {
+            if (!std.mem.eql(u8, field.name, "self")) {
+                label = label ++ field.name;
+                if (i < arg_by_name_info.fields.len - 1) {
+                    label = label ++ ", ";
+                }
+            }
+        }
+        label = label ++ ")";
+    }
+    switch (f_info.return_type.?) {
+        bool => {
+            readOnlyCheckbox(label, @call(.auto, f, args));
+        },
+        else => unreachable,
+    }
+}
+
 const OpenVRWindow = struct {
     init_error: OpenVR.InitError = OpenVR.InitError.None,
     openvr: ?OpenVR = null,
@@ -943,7 +986,7 @@ const OpenVRWindow = struct {
         defer zgui.end();
         if (zgui.begin("OpenVR", .{ .flags = .{ .always_auto_resize = true } })) {
             if (self.openvr) |openvr| {
-                if (zgui.button("shutdown", .{})) {
+                if (zgui.button("deinit()", .{})) {
                     openvr.deinit();
                     self.openvr = null;
                     self.system = null;
@@ -952,32 +995,36 @@ const OpenVRWindow = struct {
                     return;
                 }
 
-                readOnlyCheckbox("head mounted display present", openvr.isHmdPresent());
-                readOnlyCheckbox("runtime installed", openvr.isRuntimeInstalled());
+                guiFn("isHmdPresent", OpenVR.isHmdPresent, .{ .self = openvr });
+                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, .{ .self = openvr });
 
                 if (self.system == null) {
-                    if (zgui.button("init System", .{})) {
+                    if (zgui.button("System.init()", .{})) {
                         self.system_init_error = OpenVR.InitError.None;
                         self.system = openvr.system() catch |err| system: {
                             self.system_init_error = err;
                             break :system null;
                         };
                     }
-                    zgui.text("System init error: {!}", .{self.system_init_error});
+                    if (self.system_init_error != OpenVR.InitError.None) {
+                        zgui.text("System init error: {!}", .{self.system_init_error});
+                    }
                 }
                 zgui.newLine();
                 {
                     zgui.beginDisabled(.{ .disabled = self.system == null });
                     defer zgui.endDisabled();
                     if (self.chaperone == null) {
-                        if (zgui.button("init Chaperone", .{})) {
+                        if (zgui.button("Chaperone.init()", .{})) {
                             self.chaperone_init_error = OpenVR.InitError.None;
                             self.chaperone = openvr.chaperone() catch |err| chaperone: {
                                 self.chaperone_init_error = err;
                                 break :chaperone null;
                             };
                         }
-                        zgui.text("Chaperone init error: {!}", .{self.chaperone_init_error});
+                        if (self.chaperone_init_error != OpenVR.InitError.None) {
+                            zgui.text("Chaperone.init() error: {!}", .{self.chaperone_init_error});
+                        }
                     }
                 }
                 zgui.newLine();
@@ -985,25 +1032,29 @@ const OpenVRWindow = struct {
                     zgui.beginDisabled(.{ .disabled = self.system == null or self.chaperone == null });
                     defer zgui.endDisabled();
                     if (self.compositor == null) {
-                        if (zgui.button("init Compositor", .{})) {
+                        if (zgui.button("Compositor.init()", .{})) {
                             self.compositor_init_error = OpenVR.InitError.None;
                             self.compositor = openvr.compositor() catch |err| compositor: {
                                 self.compositor_init_error = err;
                                 break :compositor null;
                             };
                         }
-                        zgui.text("Compositor init error: {!}", .{self.compositor_init_error});
+                        if (self.compositor_init_error != OpenVR.InitError.None) {
+                            zgui.text("Compositor.init() error: {!}", .{self.compositor_init_error});
+                        }
                     }
                 }
             } else {
-                if (zgui.button("init", .{})) {
+                if (zgui.button("OpenVR.init()", .{})) {
                     self.init_error = OpenVR.InitError.None;
                     self.openvr = OpenVR.init(.scene) catch |err| openvr: {
                         self.init_error = err;
                         break :openvr null;
                     };
                 }
-                zgui.text("init error: {!}", .{self.init_error});
+                if (self.init_error != OpenVR.InitError.None) {
+                    zgui.text("OpenVR.init() error: {!}", .{self.init_error});
+                }
             }
         }
         if (self.system) |system| {
