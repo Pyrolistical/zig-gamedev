@@ -365,10 +365,7 @@ const SystemWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
-            {
-                const recommended_render_target_size = self.system.getRecommendedRenderTargetSize();
-                readOnlyScalarN("recommended render target size: [width, height]", [2]u32, .{ recommended_render_target_size.width, recommended_render_target_size.height });
-            }
+            guiFn("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, .{ .self = self.system }, "[width, height]");
 
             readOnlyText("runtime version", self.system.getRuntimeVersion());
             zgui.separatorText("head mounted display properties");
@@ -908,7 +905,7 @@ const CompositorWindow = struct {
     }
 };
 
-fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, comptime arg_by_name: anytype) void {
+fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, arg_by_name: anytype, comptime return_doc: ?[:0]const u8) void {
     const F = @TypeOf(f);
     const f_info = @typeInfo(F).Fn;
     const ArgByName = @TypeOf(arg_by_name);
@@ -918,14 +915,14 @@ fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, comptime arg_by_nam
         arg_types[i] = param.type.?;
     }
     const Args = std.meta.Tuple(&arg_types);
-    comptime var args: Args = undefined;
+    var args: Args = undefined;
     inline for (arg_by_name_info.fields, 0..) |field, i| {
         args[i] = @field(arg_by_name, field.name);
     }
 
-    inline for (args, 0..) |_, i| {
-        switch (f_info.params[i].type.?) {
-            OpenVR => {},
+    inline for (args) |arg| {
+        switch (@TypeOf(arg)) {
+            OpenVR, OpenVR.System => {},
             else => unreachable,
         }
     }
@@ -942,11 +939,15 @@ fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, comptime arg_by_nam
             }
         }
         label = label ++ ")";
+        if (return_doc) |rd| {
+            label = label ++ ": " ++ rd;
+        }
     }
-    switch (f_info.return_type.?) {
-        bool => {
-            readOnlyCheckbox(label, @call(.auto, f, args));
-        },
+    const ResultType = f_info.return_type.?;
+    const result = @call(.auto, f, args);
+    switch (ResultType) {
+        bool => readOnlyCheckbox(label, result),
+        OpenVR.System.RenderTargetSize => readOnlyScalarN(label, [2]u32, .{ @as(OpenVR.System.RenderTargetSize, result).width, @as(OpenVR.System.RenderTargetSize, result).height }),
         else => unreachable,
     }
 }
@@ -995,8 +996,8 @@ const OpenVRWindow = struct {
                     return;
                 }
 
-                guiFn("isHmdPresent", OpenVR.isHmdPresent, .{ .self = openvr });
-                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, .{ .self = openvr });
+                guiFn("isHmdPresent", OpenVR.isHmdPresent, .{ .self = openvr }, "");
+                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, .{ .self = openvr }, "");
 
                 if (self.system == null) {
                     if (zgui.button("System.init()", .{})) {
