@@ -474,6 +474,7 @@ const ChaperoneWindow = struct {
     bound_colors_count: i32 = 1,
     collision_bounds_fade_distance: f32 = 0,
     force_bounds_visible: bool = false,
+    reset_zero_pose_origin: OpenVR.TrackingUniverseOrigin = .seated,
 
     fn show(
         self: *ChaperoneWindow,
@@ -510,18 +511,10 @@ const ChaperoneWindow = struct {
                     }
                     readOnlyColor4("camera", @bitCast(bounds_color.camera_color));
                 }
-                guiGetter("areBoundsVisible", OpenVR.Chaperone.areBoundsVisible, chaperone, .{}, null);
-                guiSetter("forceBoundsVisible", OpenVR.Chaperone.forceBoundsVisible, chaperone, .{ .force = &self.force_bounds_visible }, null);
             }
-            {
-                zgui.separatorText("Pose");
-                var origin: OpenVR.TrackingUniverseOrigin = .seated;
-                _ = zgui.comboFromEnum("origin", &origin);
-                zgui.sameLine(.{});
-                if (zgui.button("reset zero", .{})) {
-                    chaperone.resetZeroPose(origin);
-                }
-            }
+            guiGetter("areBoundsVisible", OpenVR.Chaperone.areBoundsVisible, chaperone, .{}, null);
+            guiSetter("forceBoundsVisible", OpenVR.Chaperone.forceBoundsVisible, chaperone, .{ .force = &self.force_bounds_visible }, null);
+            guiSetter("resetZeroPose", OpenVR.Chaperone.resetZeroPose, chaperone, .{ .origin = &self.reset_zero_pose_origin }, null);
         }
     }
 };
@@ -881,6 +874,9 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 },
                 bool => {
                     _ = zgui.checkbox(arg_name, .{ .v = arg_ptr });
+                },
+                OpenVR.TrackingUniverseOrigin => {
+                    _ = zgui.comboFromEnum("origin", arg_ptr);
                 },
                 else => unreachable,
             }
