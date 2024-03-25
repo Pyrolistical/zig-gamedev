@@ -365,7 +365,7 @@ const SystemWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
-            guiFn("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, .{ .self = self.system }, "[width, height]");
+            guiFn("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, self.system, .{}, "[width, height]");
 
             readOnlyText("runtime version", self.system.getRuntimeVersion());
             zgui.separatorText("head mounted display properties");
@@ -572,12 +572,7 @@ fn readOnlyTrackedDevicePose(label: [:0]const u8, pose: OpenVR.TrackedDevicePose
     }
 }
 
-fn readOnlyFrameTiming(label: [:0]const u8, frame_timing: OpenVR.Compositor.FrameTiming) void {
-    zgui.text("{s}", .{label});
-    zgui.pushStrId(label);
-    defer zgui.popId();
-    zgui.indent(.{ .indent_w = 30 });
-    defer zgui.unindent(.{ .indent_w = 30 });
+fn readOnlyFrameTiming(frame_timing: OpenVR.Compositor.FrameTiming) void {
     readOnlyScalar("size", u32, frame_timing.size);
     readOnlyScalar("frame_index", u32, frame_timing.frame_index);
     readOnlyScalar("num_frame_presents", u32, frame_timing.num_frame_presents);
@@ -760,21 +755,11 @@ const CompositorWindow = struct {
             {
                 zgui.separatorText("Submit");
             }
+            guiFn("getFrameTiming", OpenVR.Compositor.getFrameTiming, compositor, .{
+                .frames_ago = &self.frame_timing_frames_ago,
+            }, "?FrameTiming");
             {
                 zgui.separatorText("Frame timing");
-                {
-                    zgui.text("One frame ago", .{});
-                    zgui.pushStrId("getFrameTiming");
-                    defer zgui.popId();
-
-                    _ = zgui.inputScalar("ago", u32, .{
-                        .v = &self.frame_timing_frames_ago,
-                        .step = 1,
-                    });
-                    if (compositor.getFrameTiming(self.frame_timing_frames_ago)) |frame_timing| {
-                        readOnlyFrameTiming("frame timing", frame_timing);
-                    }
-                }
                 {
                     zgui.text("Frames", .{});
                     zgui.pushStrId("allocFrameTimings");
@@ -792,7 +777,7 @@ const CompositorWindow = struct {
                     for (frames, 0..) |frame_timing, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
-                        readOnlyFrameTiming("frame timing", frame_timing);
+                        readOnlyFrameTiming(frame_timing);
                     }
                 }
                 readOnlyFloat("frame time remaining", compositor.getFrameTimeRemaining());
@@ -905,50 +890,67 @@ const CompositorWindow = struct {
     }
 };
 
-fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, arg_by_name: anytype, comptime return_doc: ?[:0]const u8) void {
+fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_ptrs: anytype, comptime return_doc: ?[:0]const u8) void {
     const F = @TypeOf(f);
     const f_info = @typeInfo(F).Fn;
-    const ArgByName = @TypeOf(arg_by_name);
-    const arg_by_name_info = @typeInfo(ArgByName).Struct;
-    comptime var arg_types: [arg_by_name_info.fields.len]type = undefined;
+    comptime var arg_types: [f_info.params.len]type = undefined;
     inline for (f_info.params, 0..) |param, i| {
         arg_types[i] = param.type.?;
     }
     const Args = std.meta.Tuple(&arg_types);
     var args: Args = undefined;
-    inline for (arg_by_name_info.fields, 0..) |field, i| {
-        args[i] = @field(arg_by_name, field.name);
-    }
+    args[0] = self;
 
-    inline for (args) |arg| {
-        switch (@TypeOf(arg)) {
-            OpenVR, OpenVR.System => {},
-            else => unreachable,
-        }
-    }
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    comptime var label: [:0]const u8 = f_name;
-    comptime {
-        label = label ++ "(";
-        for (arg_by_name_info.fields, 0..) |field, i| {
-            if (!std.mem.eql(u8, field.name, "self")) {
-                label = label ++ field.name;
-                if (i < arg_by_name_info.fields.len - 1) {
-                    label = label ++ ", ";
-                }
+    zgui.text("{s}(", .{f_name});
+    if (arg_types.len > 1) {
+        zgui.indent(.{ .indent_w = 30 });
+        defer zgui.unindent(.{ .indent_w = 30 });
+        inline for (arg_types[1..], 0..) |arg_type, i| {
+            const arg_name: [:0]const u8 = arg_ptrs_info.fields[i].name ++ "";
+            const arg_ptr = @field(arg_ptrs, arg_name);
+            switch (arg_type) {
+                u32 => {
+                    _ = zgui.inputScalar(arg_name, u32, .{
+                        .v = arg_ptr,
+                        .step = 1,
+                    });
+                },
+                else => unreachable,
+            }
+            args[i + 1] = arg_ptr.*;
+            if (i < arg_types.len - 1) {
+                zgui.sameLine(.{});
+                zgui.text(", ", .{});
             }
         }
-        label = label ++ ")";
-        if (return_doc) |rd| {
-            label = label ++ ": " ++ rd;
-        }
+    } else {
+        zgui.sameLine(.{});
     }
     const ResultType = f_info.return_type.?;
-    const result = @call(.auto, f, args);
-    switch (ResultType) {
-        bool => readOnlyCheckbox(label, result),
-        OpenVR.System.RenderTargetSize => readOnlyScalarN(label, [2]u32, .{ @as(OpenVR.System.RenderTargetSize, result).width, @as(OpenVR.System.RenderTargetSize, result).height }),
-        else => unreachable,
+    zgui.text("): {s}", .{return_doc orelse @typeName(ResultType)});
+
+    const result: ResultType = @call(.auto, f, args);
+    {
+        zgui.indent(.{ .indent_w = 30 });
+        defer zgui.unindent(.{ .indent_w = 30 });
+        switch (ResultType) {
+            bool => readOnlyCheckbox("##" ++ f_name, result),
+            OpenVR.System.RenderTargetSize => readOnlyScalarN("##" ++ f_name, [2]u32, .{
+                @as(OpenVR.System.RenderTargetSize, result).width,
+                @as(OpenVR.System.RenderTargetSize, result).height,
+            }),
+            ?OpenVR.Compositor.FrameTiming => {
+                if (result) |frame_timing| {
+                    readOnlyFrameTiming(frame_timing);
+                } else {
+                    zgui.text("null", .{});
+                }
+            },
+            else => unreachable,
+        }
     }
 }
 
@@ -996,8 +998,8 @@ const OpenVRWindow = struct {
                     return;
                 }
 
-                guiFn("isHmdPresent", OpenVR.isHmdPresent, .{ .self = openvr }, "");
-                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, .{ .self = openvr }, "");
+                guiFn("isHmdPresent", OpenVR.isHmdPresent, openvr, .{}, null);
+                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, openvr, .{}, null);
 
                 if (self.system == null) {
                     if (zgui.button("System.init()", .{})) {
