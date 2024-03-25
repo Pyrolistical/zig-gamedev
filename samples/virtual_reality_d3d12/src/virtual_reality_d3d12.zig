@@ -473,6 +473,7 @@ const ChaperoneWindow = struct {
     scene_color: OpenVR.Color = .{ .r = 0, .b = 0, .g = 0, .a = 1 },
     bound_colors_count: i32 = 1,
     collision_bounds_fade_distance: f32 = 0,
+    force_bounds_visible: bool = false,
 
     fn show(
         self: *ChaperoneWindow,
@@ -509,15 +510,8 @@ const ChaperoneWindow = struct {
                     }
                     readOnlyColor4("camera", @bitCast(bounds_color.camera_color));
                 }
-                readOnlyCheckbox("visible", chaperone.areBoundsVisible());
-                zgui.sameLine(.{});
-                if (zgui.button("force visible", .{})) {
-                    chaperone.forceBoundsVisible(true);
-                }
-                zgui.sameLine(.{});
-                if (zgui.button("force invisible", .{})) {
-                    chaperone.forceBoundsVisible(false);
-                }
+                guiGetter("areBoundsVisible", OpenVR.Chaperone.areBoundsVisible, chaperone, .{}, null);
+                guiSetter("forceBoundsVisible", OpenVR.Chaperone.forceBoundsVisible, chaperone, .{ .force = &self.force_bounds_visible }, null);
             }
             {
                 zgui.separatorText("Pose");
@@ -883,7 +877,10 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                     });
                 },
                 OpenVR.Color => {
-                    _ = zgui.colorEdit4("scene color", .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
+                    _ = zgui.colorEdit4(arg_name, .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
+                },
+                bool => {
+                    _ = zgui.checkbox(arg_name, .{ .v = arg_ptr });
                 },
                 else => unreachable,
             }
