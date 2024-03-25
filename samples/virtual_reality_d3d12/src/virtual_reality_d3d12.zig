@@ -365,9 +365,9 @@ const SystemWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
-            guiFn("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, self.system, .{}, "[width, height]");
+            guiGetter("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, self.system, .{}, "[width, height]");
 
-            guiFn("getRuntimeVersion", OpenVR.System.getRuntimeVersion, self.system, .{}, null);
+            guiGetter("getRuntimeVersion", OpenVR.System.getRuntimeVersion, self.system, .{}, null);
             zgui.separatorText("head mounted display properties");
             {
                 inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
@@ -470,7 +470,7 @@ const SystemWindow = struct {
 };
 
 const ChaperoneWindow = struct {
-    scene_color: [4]f32 = .{ 0, 0, 0, 1 },
+    scene_color: OpenVR.Color = .{ .r = 0, .b = 0, .g = 0, .a = 1 },
     bound_colors_count: i32 = 1,
     collision_bounds_fade_distance: f32 = 0,
 
@@ -482,21 +482,14 @@ const ChaperoneWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
-            guiFn("getCalibrationState", OpenVR.Chaperone.getCalibrationState, chaperone, .{}, null);
-            guiFn("getPlayAreaSize", OpenVR.Chaperone.getPlayAreaSize, chaperone, .{}, "{x: meters, z: meters}");
-            guiFn("getPlayAreaRect", OpenVR.Chaperone.getPlayAreaRect, chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
-            if (zgui.button("reloadInfo()", .{})) {
-                chaperone.reloadInfo();
-            }
+            guiGetter("getCalibrationState", OpenVR.Chaperone.getCalibrationState, chaperone, .{}, null);
+            guiGetter("getPlayAreaSize", OpenVR.Chaperone.getPlayAreaSize, chaperone, .{}, "{x: meters, z: meters}");
+            guiGetter("getPlayAreaRect", OpenVR.Chaperone.getPlayAreaRect, chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
+
+            guiSetter("reloadInfo", OpenVR.Chaperone.reloadInfo, chaperone, .{}, null);
+            guiSetter("setSceneColor", OpenVR.Chaperone.setSceneColor, chaperone, .{ .scene_color = &self.scene_color }, null);
             {
                 zgui.separatorText("Bounds");
-                {
-                    _ = zgui.colorEdit4("scene color", .{ .col = &self.scene_color, .flags = .{ .float = true } });
-                    zgui.sameLine(.{});
-                    if (zgui.button("set##scene color", .{})) {
-                        chaperone.setSceneColor(@bitCast(self.scene_color));
-                    }
-                }
                 {
                     zgui.text("Color", .{});
                     zgui.indent(.{ .indent_w = 30 });
@@ -740,7 +733,7 @@ const CompositorWindow = struct {
             {
                 zgui.separatorText("Submit");
             }
-            guiFn("getFrameTiming", OpenVR.Compositor.getFrameTiming, compositor, .{
+            guiGetter("getFrameTiming", OpenVR.Compositor.getFrameTiming, compositor, .{
                 .frames_ago = &self.frame_timing_frames_ago,
             }, "?FrameTiming");
             {
@@ -875,21 +868,7 @@ const CompositorWindow = struct {
     }
 };
 
-fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_ptrs: anytype, comptime return_doc: ?[:0]const u8) void {
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
-    args[0] = self;
-
-    const ArgPtrs = @TypeOf(arg_ptrs);
-    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
-
-    zgui.text("{s}(", .{f_name});
+fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
     if (arg_types.len > 1) {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
@@ -903,21 +882,52 @@ fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_
                         .step = 1,
                     });
                 },
+                OpenVR.Color => {
+                    _ = zgui.colorEdit4("scene color", .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
+                },
                 else => unreachable,
             }
-            args[i + 1] = arg_ptr.*;
-            if (i < arg_types.len - 1) {
-                zgui.sameLine(.{});
-                zgui.text(", ", .{});
-            }
+            zgui.sameLine(.{});
+            zgui.text(", ", .{});
         }
     } else {
         zgui.sameLine(.{});
     }
-    const ResultType = f_info.return_type.?;
-    zgui.text("): {s}", .{return_doc orelse @typeName(ResultType)});
+}
 
+fn guiGetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_ptrs: anytype, return_doc: ?[:0]const u8) void {
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    comptime var arg_types: [f_info.params.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const Args = std.meta.Tuple(&arg_types);
+    var args: Args = undefined;
+    {
+        args[0] = self;
+
+        if (arg_types.len > 1) {
+            inline for (arg_ptrs_info.fields, 0..) |field, i| {
+                const arg_ptr = @field(arg_ptrs, field.name);
+                args[i + 1] = arg_ptr.*;
+            }
+        }
+    }
+
+    const ResultType = f_info.return_type.?;
     const result: ResultType = @call(.auto, f, args);
+
+    {
+        zgui.text("{s}(", .{f_name});
+        guiParams(&arg_types, arg_ptrs_info, arg_ptrs);
+        zgui.text("): {s}", .{return_doc orelse @typeName(ResultType)});
+    }
+
     {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
@@ -956,6 +966,40 @@ fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_
             else => unreachable,
         }
     }
+    zgui.newLine();
+}
+
+fn guiSetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_ptrs: anytype, return_doc: ?[:0]const u8) void {
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    comptime var arg_types: [f_info.params.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const Args = std.meta.Tuple(&arg_types);
+    var args: Args = undefined;
+    {
+        args[0] = self;
+
+        if (arg_types.len > 1) {
+            inline for (arg_ptrs_info.fields, 0..) |field, i| {
+                const arg_ptr = @field(arg_ptrs, field.name);
+                args[i + 1] = arg_ptr.*;
+            }
+        }
+    }
+
+    const ResultType = f_info.return_type.?;
+    if (zgui.button(f_name, .{})) {
+        @call(.auto, f, args);
+    }
+    zgui.sameLine(.{});
+    zgui.text("(", .{});
+    guiParams(&arg_types, arg_ptrs_info, arg_ptrs);
+    zgui.text("): {s}", .{return_doc orelse @typeName(ResultType)});
     zgui.newLine();
 }
 
@@ -1003,8 +1047,8 @@ const OpenVRWindow = struct {
                     return;
                 }
 
-                guiFn("isHmdPresent", OpenVR.isHmdPresent, openvr, .{}, null);
-                guiFn("isRuntimeInstalled", OpenVR.isRuntimeInstalled, openvr, .{}, null);
+                guiGetter("isHmdPresent", OpenVR.isHmdPresent, openvr, .{}, null);
+                guiGetter("isRuntimeInstalled", OpenVR.isRuntimeInstalled, openvr, .{}, null);
 
                 if (self.system == null) {
                     if (zgui.button("System.init()", .{})) {
