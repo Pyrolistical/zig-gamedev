@@ -367,7 +367,7 @@ const SystemWindow = struct {
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
             guiFn("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, self.system, .{}, "[width, height]");
 
-            readOnlyText("runtime version", self.system.getRuntimeVersion());
+            guiFn("getRuntimeVersion", OpenVR.System.getRuntimeVersion, self.system, .{}, null);
             zgui.separatorText("head mounted display properties");
             {
                 inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Bool).Enum.fields) |field| {
@@ -482,25 +482,10 @@ const ChaperoneWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
-            readOnlyText("calibration state", @tagName(chaperone.getCalibrationState()));
-            {
-                if (chaperone.getPlayAreaSize()) |play_area_size| {
-                    readOnlyFloat2("play area size: [x meters, z meters]", .{ play_area_size.x, play_area_size.z });
-                } else {
-                    readOnlyText("play area size: [x meters, z meters]", "unavailable");
-                }
-            }
-            {
-                if (chaperone.getPlayAreaRect()) |play_area_rect| {
-                    readOnlyFloat3("play area rect corners: [x meters, y meters, z meters]##corners[0]", play_area_rect.corners[0].v);
-                    readOnlyFloat3("##corners[1]", play_area_rect.corners[1].v);
-                    readOnlyFloat3("##corners[2]", play_area_rect.corners[2].v);
-                    readOnlyFloat3("##corners[3]", play_area_rect.corners[3].v);
-                } else {
-                    readOnlyText("play area rect", "unavailable");
-                }
-            }
-            if (zgui.button("reload info", .{})) {
+            guiFn("getCalibrationState", OpenVR.Chaperone.getCalibrationState, chaperone, .{}, null);
+            guiFn("getPlayAreaSize", OpenVR.Chaperone.getPlayAreaSize, chaperone, .{}, "{x: meters, z: meters}");
+            guiFn("getPlayAreaRect", OpenVR.Chaperone.getPlayAreaRect, chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
+            if (zgui.button("reloadInfo()", .{})) {
                 chaperone.reloadInfo();
             }
             {
@@ -949,9 +934,29 @@ fn guiFn(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, arg_
                     zgui.text("null", .{});
                 }
             },
+            [:0]const u8 => readOnlyText("##" ++ f_name, result),
+            OpenVR.Chaperone.CalibrationState => readOnlyText("##" ++ f_name, @tagName(result)),
+            ?OpenVR.Chaperone.PlayAreaSize => {
+                if (result) |play_area_size| {
+                    readOnlyFloat2("##" ++ f_name, .{ play_area_size.x, play_area_size.z });
+                } else {
+                    readOnlyText("##" ++ f_name, "unavailable");
+                }
+            },
+            ?OpenVR.Quad => {
+                if (result) |quad| {
+                    readOnlyFloat3("[0]##" ++ f_name, quad.corners[0].v);
+                    readOnlyFloat3("[1]##" ++ f_name, quad.corners[1].v);
+                    readOnlyFloat3("[2]##" ++ f_name, quad.corners[2].v);
+                    readOnlyFloat3("[3]##" ++ f_name, quad.corners[3].v);
+                } else {
+                    readOnlyText("##" ++ f_name, "unavailable");
+                }
+            },
             else => unreachable,
         }
     }
+    zgui.newLine();
 }
 
 const OpenVRWindow = struct {
