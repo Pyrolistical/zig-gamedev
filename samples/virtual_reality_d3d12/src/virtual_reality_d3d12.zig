@@ -1000,6 +1000,12 @@ fn guiSetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
     zgui.newLine();
 }
 
+const Windows = enum {
+    system,
+    chaperone,
+    compositor,
+};
+
 const OpenVRWindow = struct {
     init_error: OpenVR.InitError = OpenVR.InitError.None,
     openvr: ?OpenVR = null,
@@ -1014,6 +1020,8 @@ const OpenVRWindow = struct {
     compositor_init_error: OpenVR.InitError = OpenVR.InitError.None,
     compositor: ?OpenVR.Compositor = null,
     compositor_window: CompositorWindow = .{},
+
+    next_window_focus: ?Windows = null,
 
     pub fn init() OpenVRWindow {
         return .{};
@@ -1048,48 +1056,53 @@ const OpenVRWindow = struct {
                 guiGetter("isRuntimeInstalled", OpenVR.isRuntimeInstalled, openvr, .{}, null);
 
                 if (self.system == null) {
-                    if (zgui.button("System.init()", .{})) {
-                        self.system_init_error = OpenVR.InitError.None;
-                        self.system = openvr.system() catch |err| system: {
-                            self.system_init_error = err;
-                            break :system null;
-                        };
-                    }
+                    self.system_init_error = OpenVR.InitError.None;
+                    self.system = openvr.system() catch |err| system: {
+                        self.system_init_error = err;
+                        break :system null;
+                    };
+
                     if (self.system_init_error != OpenVR.InitError.None) {
-                        zgui.text("System init error: {!}", .{self.system_init_error});
+                        zgui.text("system() error: {!}", .{self.system_init_error});
+                    }
+                } else {
+                    if (zgui.button("focus system window", .{})) {
+                        self.next_window_focus = .system;
                     }
                 }
                 zgui.newLine();
-                {
-                    zgui.beginDisabled(.{ .disabled = self.system == null });
-                    defer zgui.endDisabled();
+
+                if (self.system != null) {
                     if (self.chaperone == null) {
-                        if (zgui.button("Chaperone.init()", .{})) {
-                            self.chaperone_init_error = OpenVR.InitError.None;
-                            self.chaperone = openvr.chaperone() catch |err| chaperone: {
-                                self.chaperone_init_error = err;
-                                break :chaperone null;
-                            };
-                        }
+                        self.chaperone_init_error = OpenVR.InitError.None;
+                        self.chaperone = openvr.chaperone() catch |err| chaperone: {
+                            self.chaperone_init_error = err;
+                            break :chaperone null;
+                        };
                         if (self.chaperone_init_error != OpenVR.InitError.None) {
-                            zgui.text("Chaperone.init() error: {!}", .{self.chaperone_init_error});
+                            zgui.text("chaperone() error: {!}", .{self.chaperone_init_error});
+                        }
+                    } else {
+                        if (zgui.button("focus chaperone window", .{})) {
+                            self.next_window_focus = .chaperone;
                         }
                     }
                 }
                 zgui.newLine();
-                {
-                    zgui.beginDisabled(.{ .disabled = self.system == null or self.chaperone == null });
-                    defer zgui.endDisabled();
+
+                if (self.system != null and self.chaperone != null) {
                     if (self.compositor == null) {
-                        if (zgui.button("Compositor.init()", .{})) {
-                            self.compositor_init_error = OpenVR.InitError.None;
-                            self.compositor = openvr.compositor() catch |err| compositor: {
-                                self.compositor_init_error = err;
-                                break :compositor null;
-                            };
-                        }
+                        self.compositor_init_error = OpenVR.InitError.None;
+                        self.compositor = openvr.compositor() catch |err| compositor: {
+                            self.compositor_init_error = err;
+                            break :compositor null;
+                        };
                         if (self.compositor_init_error != OpenVR.InitError.None) {
-                            zgui.text("Compositor.init() error: {!}", .{self.compositor_init_error});
+                            zgui.text("compositor() error: {!}", .{self.compositor_init_error});
+                        }
+                    } else {
+                        if (zgui.button("focus compositor window", .{})) {
+                            self.next_window_focus = .compositor;
                         }
                     }
                 }
@@ -1107,13 +1120,25 @@ const OpenVRWindow = struct {
             }
         }
         if (self.system) |system| {
+            if (self.next_window_focus == .system) {
+                zgui.setNextWindowFocus();
+                self.next_window_focus = null;
+            }
             const system_window = SystemWindow{ .system = system };
             try system_window.show(allocator);
         }
         if (self.chaperone) |chaperone| {
+            if (self.next_window_focus == .chaperone) {
+                zgui.setNextWindowFocus();
+                self.next_window_focus = null;
+            }
             try self.chaperone_window.show(chaperone, allocator);
         }
         if (self.compositor) |compositor| {
+            if (self.next_window_focus == .compositor) {
+                zgui.setNextWindowFocus();
+                self.next_window_focus = null;
+            }
             try self.compositor_window.show(compositor, allocator);
         }
     }
