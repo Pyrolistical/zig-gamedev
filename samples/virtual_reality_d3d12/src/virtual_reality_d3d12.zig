@@ -962,6 +962,13 @@ fn guiAllocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, c
 
     {
         zgui.text("{s}(", .{f_name});
+        {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("allocator", .{});
+            zgui.sameLine(.{});
+            zgui.text(",", .{});
+        }
         guiParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
         zgui.text("): {s}", .{return_doc orelse @typeName(ResultType)});
     }
