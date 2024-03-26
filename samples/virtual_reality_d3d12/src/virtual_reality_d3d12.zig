@@ -577,15 +577,14 @@ const CompositorWindow = struct {
     fade_color_seconds: f32 = 0,
     fade_color: [4]f32 = [_]f32{ 0, 0, 0, 1 },
     fade_color_background: bool = false,
+    tracking_space_origin: OpenVR.TrackingUniverseOrigin = .seated,
 
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
-            var origin: OpenVR.TrackingUniverseOrigin = compositor.getTrackingSpace();
-            if (zgui.comboFromEnum("tracking space origin", &origin)) {
-                compositor.setTrackingSpace(origin);
-            }
+            guiGetter("getTrackingSpace", OpenVR.Compositor.getTrackingSpace, compositor, .{}, null);
+            guiSetter("setTrackingSpace", OpenVR.Compositor.setTrackingSpace, compositor, .{ .origin = &self.tracking_space_origin }, null);
             {
                 zgui.separatorText("Poses");
                 {
@@ -938,7 +937,7 @@ fn guiGetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
                 }
             },
             [:0]const u8 => readOnlyText("##" ++ f_name, result),
-            OpenVR.Chaperone.CalibrationState => readOnlyText("##" ++ f_name, @tagName(result)),
+            OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##" ++ f_name, @tagName(result)),
             ?OpenVR.Chaperone.PlayAreaSize => {
                 if (result) |play_area_size| {
                     readOnlyFloat2("##" ++ f_name, .{ play_area_size.x, play_area_size.z });
