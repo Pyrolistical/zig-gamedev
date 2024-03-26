@@ -269,8 +269,8 @@ pub fn getCumulativeStats(self: Self) CumulativeStats {
     return cummulative_stats;
 }
 
-pub fn fadeToColor(self: Self, seconds: f32, red: f32, green: f32, blue: f32, alpha: f32, background: bool) void {
-    self.function_table.FadeToColor(seconds, red, green, blue, alpha, background);
+pub fn fadeToColor(self: Self, seconds: f32, color: common.Color, background: bool) void {
+    self.function_table.FadeToColor(seconds, color.r, color.g, color.b, color.a, background);
 }
 
 pub fn getCurrentFadeColor(self: Self, background: bool) common.Color {
