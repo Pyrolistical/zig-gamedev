@@ -1279,7 +1279,7 @@ pub fn allocMatrix34ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Al
     return self.allocArrayTrackedDeviceProperty(common.Matrix34, allocator, device_index, property);
 }
 
-pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.String) TrackedPropertyError![]u8 {
+pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.String) TrackedPropertyError![:0]u8 {
     var property_error: TrackedPropertyErrorCode = undefined;
     const buffer_length = self.function_table.GetStringTrackedDeviceProperty(device_index, property, null, 0, &property_error);
     property_error.maybe() catch |err| switch (err) {
@@ -1287,7 +1287,7 @@ pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator
         else => return err,
     };
 
-    const buffer = try allocator.alloc(u8, buffer_length);
+    const buffer = try allocator.allocSentinel(u8, buffer_length - 1, 0);
     if (buffer_length > 0) {
         property_error = undefined;
         _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, @ptrCast(buffer.ptr), buffer_length, &property_error);
