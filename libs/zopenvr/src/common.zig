@@ -703,6 +703,10 @@ pub const Matrix34 = extern struct {
     m: [3][4]f32,
 };
 
+pub const Matrix44 = extern struct {
+    m: [4][4]f32,
+};
+
 pub const TrackingUniverseOrigin = enum(i32) {
     seated = 0,
     standing = 1,

@@ -8,10 +8,6 @@ const Self = @This();
 
 const VkInstance = anyopaque;
 
-pub const Matrix44 = extern struct {
-    m: [4][4]f32,
-};
-
 pub const Vector2 = extern struct {
     v: [2]f32,
 };
@@ -1087,7 +1083,7 @@ pub fn getRecommendedRenderTargetSize(self: Self) RenderTargetSize {
     return render_target_size;
 }
 
-pub fn getProjectionMatrix(self: Self, eye: common.Eye, near: f32, far: f32) Matrix44 {
+pub fn getProjectionMatrix(self: Self, eye: common.Eye, near: f32, far: f32) common.Matrix44 {
     return self.function_table.GetProjectionMatrix(eye, near, far);
 }
 
@@ -1235,7 +1231,7 @@ pub const PropertyTypeTagCode = enum(u32) {
             bool => .bool,
             f64 => .double,
             common.Matrix34 => .matrix34,
-            Matrix44 => .matrix44,
+            common.Matrix44 => .matrix44,
             Vector2 => .vector2,
             common.Vector3 => .vector3,
             common.Vector4 => .vector4,
@@ -1405,7 +1401,7 @@ pub fn getRuntimeVersion(self: Self) [:0]const u8 {
 
 pub const FunctionTable = extern struct {
     GetRecommendedRenderTargetSize: *const fn (*u32, *u32) callconv(.C) void,
-    GetProjectionMatrix: *const fn (common.Eye, f32, f32) callconv(.C) Matrix44,
+    GetProjectionMatrix: *const fn (common.Eye, f32, f32) callconv(.C) common.Matrix44,
     GetProjectionRaw: *const fn (common.Eye, *f32, *f32, *f32, *f32) callconv(.C) void,
     ComputeDistortion: *const fn (common.Eye, f32, f32, *DistortionCoordinates) callconv(.C) bool,
     GetEyeToHeadTransform: *const fn (common.Eye) callconv(.C) common.Matrix34,

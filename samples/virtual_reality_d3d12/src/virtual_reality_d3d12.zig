@@ -349,6 +349,20 @@ fn readOnlyMatrix34(label: [:0]const u8, v: OpenVR.Matrix34) void {
     readOnlyFloat4("m[1]", v.m[1]);
     readOnlyFloat4("m[2]", v.m[2]);
 }
+
+fn readOnlyMatrix44(label: [:0]const u8, v: OpenVR.Matrix44) void {
+    zgui.text("{s}", .{label});
+    zgui.pushStrId(label);
+    defer zgui.popId();
+    zgui.indent(.{ .indent_w = 30 });
+    defer zgui.unindent(.{ .indent_w = 30 });
+
+    readOnlyFloat4("m[0]", v.m[0]);
+    readOnlyFloat4("m[1]", v.m[1]);
+    readOnlyFloat4("m[2]", v.m[2]);
+    readOnlyFloat4("m[3]", v.m[3]);
+}
+
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.inputFloat4(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
@@ -359,6 +373,10 @@ fn readOnlyColor4(label: [:0]const u8, v: [4]f32) void {
     _ = zgui.colorEdit4(label, .{ .col = @constCast(&v), .flags = .{ .float = true } });
 }
 const SystemWindow = struct {
+    projection_matrix_eye: OpenVR.Eye = .left,
+    projection_matrix_near: f32 = 0,
+    projection_matrix_far: f32 = 0,
+
     tracked_device_property_device_index_bool: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_bool: OpenVR.System.TrackedDeviceProperty.Bool = .will_drift_in_yaw,
 
@@ -394,8 +412,11 @@ const SystemWindow = struct {
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
             try guiGetter("getRecommendedRenderTargetSize", OpenVR.System.getRecommendedRenderTargetSize, system, .{}, "[width, height]");
-
-            try guiGetter("getRuntimeVersion", OpenVR.System.getRuntimeVersion, system, .{}, null);
+            try guiGetter("getProjectionMatrix", OpenVR.System.getProjectionMatrix, system, .{
+                .eye = &self.projection_matrix_eye,
+                .near = &self.projection_matrix_near,
+                .far = &self.projection_matrix_far,
+            }, null);
 
             try guiGetter("getBoolTrackedDeviceProperty", OpenVR.System.getBoolTrackedDeviceProperty, system, .{
                 .device_index = &self.tracked_device_property_device_index_bool,
@@ -439,6 +460,8 @@ const SystemWindow = struct {
                 .device_index = &self.tracked_device_property_device_index_string,
                 .property = &self.tracked_device_property_string,
             }, null);
+
+            try guiGetter("getRuntimeVersion", OpenVR.System.getRuntimeVersion, system, .{}, null);
         }
     }
 };
@@ -642,6 +665,9 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
     if (arg_types.len > 0) {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
+        if (arg_types.len != arg_ptrs_info.fields.len) {
+            @compileError(std.fmt.comptimePrint("expected arg_ptrs to have {} fields, but was {}", .{ arg_types.len, arg_ptrs_info.fields.len }));
+        }
         inline for (arg_types, 0..) |arg_type, i| {
             const arg_name: [:0]const u8 = arg_ptrs_info.fields[i].name ++ "";
             const arg_ptr = @field(arg_ptrs, arg_name);
@@ -667,9 +693,8 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 OpenVR.Color => {
                     _ = zgui.colorEdit4(arg_name, .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
                 },
-                OpenVR.TrackingUniverseOrigin => {
-                    _ = zgui.comboFromEnum("origin", arg_ptr);
-                },
+                OpenVR.TrackingUniverseOrigin,
+                OpenVR.Eye,
                 OpenVR.System.TrackedDeviceProperty.Bool,
                 OpenVR.System.TrackedDeviceProperty.F32,
                 OpenVR.System.TrackedDeviceProperty.I32,
@@ -681,7 +706,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 OpenVR.System.TrackedDeviceProperty.Array.Matrix34,
                 OpenVR.System.TrackedDeviceProperty.String,
                 => {
-                    _ = zgui.comboFromEnum("property", arg_ptr);
+                    _ = zgui.comboFromEnum(arg_name, arg_ptr);
                 },
                 else => @compileError(@typeName(arg_type) ++ " not implemented"),
             }
@@ -814,6 +839,7 @@ fn guiResult(comptime Return: type, result: Return) void {
             zgui.text("(empty)", .{});
         },
         OpenVR.Matrix34 => readOnlyMatrix34("", result),
+        OpenVR.Matrix44 => readOnlyMatrix44("", result),
         []OpenVR.Matrix34 => if (result.len > 0) {
             for (result, 0..) |v, i| {
                 zgui.pushIntId(@intCast(i));
