@@ -338,29 +338,44 @@ fn readOnlyFloat3(label: [:0]const u8, v: [3]f32) void {
     _ = zgui.inputFloat3(label, .{ .v = @constCast(&v), .flags = .{ .read_only = true } });
 }
 
-fn readOnlyMatrix34(label: [:0]const u8, v: OpenVR.Matrix34) void {
-    zgui.text("{s}", .{label});
-    zgui.pushStrId(label);
-    defer zgui.popId();
-    zgui.indent(.{ .indent_w = 30 });
-    defer zgui.unindent(.{ .indent_w = 30 });
+fn readOnlyMatrix34(label: ?[:0]const u8, v: OpenVR.Matrix34) void {
+    if (label) |l| {
+        zgui.text("{s}", .{l});
 
-    readOnlyFloat4("m[0]", v.m[0]);
-    readOnlyFloat4("m[1]", v.m[1]);
-    readOnlyFloat4("m[2]", v.m[2]);
+        zgui.pushStrId(l);
+        defer zgui.popId();
+        zgui.indent(.{ .indent_w = 30 });
+        defer zgui.unindent(.{ .indent_w = 30 });
+
+        readOnlyFloat4("m[0]", v.m[0]);
+        readOnlyFloat4("m[1]", v.m[1]);
+        readOnlyFloat4("m[2]", v.m[2]);
+    } else {
+        readOnlyFloat4("m[0]", v.m[0]);
+        readOnlyFloat4("m[1]", v.m[1]);
+        readOnlyFloat4("m[2]", v.m[2]);
+    }
 }
 
-fn readOnlyMatrix44(label: [:0]const u8, v: OpenVR.Matrix44) void {
-    zgui.text("{s}", .{label});
-    zgui.pushStrId(label);
-    defer zgui.popId();
-    zgui.indent(.{ .indent_w = 30 });
-    defer zgui.unindent(.{ .indent_w = 30 });
+fn readOnlyMatrix44(label: ?[:0]const u8, v: OpenVR.Matrix44) void {
+    if (label) |l| {
+        zgui.text("{s}", .{l});
 
-    readOnlyFloat4("m[0]", v.m[0]);
-    readOnlyFloat4("m[1]", v.m[1]);
-    readOnlyFloat4("m[2]", v.m[2]);
-    readOnlyFloat4("m[3]", v.m[3]);
+        zgui.pushStrId(l);
+        defer zgui.popId();
+        zgui.indent(.{ .indent_w = 30 });
+        defer zgui.unindent(.{ .indent_w = 30 });
+
+        readOnlyFloat4("m[0]", v.m[0]);
+        readOnlyFloat4("m[1]", v.m[1]);
+        readOnlyFloat4("m[2]", v.m[2]);
+        readOnlyFloat4("m[3]", v.m[3]);
+    } else {
+        readOnlyFloat4("m[0]", v.m[0]);
+        readOnlyFloat4("m[1]", v.m[1]);
+        readOnlyFloat4("m[2]", v.m[2]);
+        readOnlyFloat4("m[3]", v.m[3]);
+    }
 }
 
 fn readOnlyFloat4(label: [:0]const u8, v: [4]f32) void {
@@ -838,13 +853,19 @@ fn guiResult(comptime Return: type, result: Return) void {
         } else {
             zgui.text("(empty)", .{});
         },
-        OpenVR.Matrix34 => readOnlyMatrix34("", result),
-        OpenVR.Matrix44 => readOnlyMatrix44("", result),
+        OpenVR.Matrix34 => readOnlyMatrix34(null, result),
+        OpenVR.Matrix44 => readOnlyMatrix44(null, result),
+        OpenVR.System.RawProjection => {
+            readOnlyFloat("left", result.left);
+            readOnlyFloat("right", result.right);
+            readOnlyFloat("top", result.top);
+            readOnlyFloat("bottom", result.bottom);
+        },
         []OpenVR.Matrix34 => if (result.len > 0) {
             for (result, 0..) |v, i| {
                 zgui.pushIntId(@intCast(i));
                 defer zgui.popId();
-                readOnlyMatrix34("", v);
+                readOnlyMatrix34(null, v);
                 zgui.sameLine(.{});
                 zgui.text("[{}]", .{i});
             }
