@@ -695,6 +695,10 @@ pub const Vector3 = extern struct {
     v: [3]f32,
 };
 
+pub const Vector4 = extern struct {
+    v: [4]f32,
+};
+
 pub const Matrix34 = extern struct {
     m: [3][4]f32,
 };

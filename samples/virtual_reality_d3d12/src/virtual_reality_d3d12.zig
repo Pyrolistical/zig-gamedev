@@ -374,6 +374,18 @@ const SystemWindow = struct {
     tracked_device_property_device_index_matrix34: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_matrix34: OpenVR.System.TrackedDeviceProperty.Matrix34 = .status_display_transform,
 
+    tracked_device_property_device_index_f32_array: OpenVR.TrackedDeviceIndex = 0,
+    tracked_device_property_f32_array: OpenVR.System.TrackedDeviceProperty.Array.Float = .camera_distortion_coefficients,
+
+    tracked_device_property_device_index_i32_array: OpenVR.TrackedDeviceIndex = 0,
+    tracked_device_property_i32_array: OpenVR.System.TrackedDeviceProperty.Array.Int32 = .camera_distortion_function,
+
+    tracked_device_property_device_index_vector4_array: OpenVR.TrackedDeviceIndex = 0,
+    tracked_device_property_vector4_array: OpenVR.System.TrackedDeviceProperty.Array.Vector4 = .camera_white_balance,
+
+    tracked_device_property_device_index_matrix34_array: OpenVR.TrackedDeviceIndex = 0,
+    tracked_device_property_matrix34_array: OpenVR.System.TrackedDeviceProperty.Array.Matrix34 = .camera_to_head_transforms,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -403,7 +415,23 @@ const SystemWindow = struct {
                 .property = &self.tracked_device_property_matrix34,
             }, null);
 
-            zgui.separatorText("head mounted display properties");
+            try guiAllocGetter(allocator, "allocFloatArrayTrackedDeviceProperty", OpenVR.System.allocFloatArrayTrackedDeviceProperty, system, .{
+                .device_index = &self.tracked_device_property_device_index_f32_array,
+                .property = &self.tracked_device_property_f32_array,
+            }, null);
+            try guiAllocGetter(allocator, "allocI32ArrayTrackedDeviceProperty", OpenVR.System.allocI32ArrayTrackedDeviceProperty, system, .{
+                .device_index = &self.tracked_device_property_device_index_i32_array,
+                .property = &self.tracked_device_property_i32_array,
+            }, null);
+            try guiAllocGetter(allocator, "allocVector4ArrayTrackedDeviceProperty", OpenVR.System.allocVector4ArrayTrackedDeviceProperty, system, .{
+                .device_index = &self.tracked_device_property_device_index_vector4_array,
+                .property = &self.tracked_device_property_vector4_array,
+            }, null);
+            try guiAllocGetter(allocator, "allocMatrix34ArrayTrackedDeviceProperty", OpenVR.System.allocMatrix34ArrayTrackedDeviceProperty, system, .{
+                .device_index = &self.tracked_device_property_device_index_matrix34_array,
+                .property = &self.tracked_device_property_matrix34_array,
+            }, null);
+
             {
                 inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.String).Enum.fields) |field| {
                     const value: ?[]u8 = system.allocStringTrackedDeviceProperty(allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.String, @enumFromInt(field.value))) catch |err| switch (err) {
@@ -413,29 +441,6 @@ const SystemWindow = struct {
                     };
                     defer if (value) |v| allocator.free(v);
                     readOnlyText(field.name ++ ": string##tracked device property", value orelse "Unknown property/not yet available");
-                }
-                inline for (@typeInfo(OpenVR.System.TrackedDeviceProperty.Array.Float).Enum.fields) |field| {
-                    const value: ?[]f32 = system.allocArrayTrackedDeviceProperty(f32, allocator, 0, @as(OpenVR.System.TrackedDeviceProperty.Array.Float, @enumFromInt(field.value))) catch |err| switch (err) {
-                        OpenVR.System.TrackedPropertyError.UnknownProperty => null,
-                        OpenVR.System.TrackedPropertyError.NotYetAvailable => null,
-                        else => return err,
-                    };
-                    defer if (value) |v| allocator.free(v);
-                    if (value) |v| {
-                        if (zgui.collapsingHeader(field.name ++ ": []f32##tracked device property", .{})) {
-                            if (v.len > 0) {
-                                for (v, 0..) |f, i| {
-                                    zgui.pushIntId(@intCast(i));
-                                    defer zgui.popId();
-                                    readOnlyFloat(field.name ++ ": []f32##tracked device property row", f);
-                                }
-                            } else {
-                                zgui.text("empty", .{});
-                            }
-                        }
-                    } else {
-                        readOnlyText(field.name ++ ": []f32##tracked device property", "Unknown property/not yet available");
-                    }
                 }
             }
         }
@@ -474,11 +479,15 @@ const ChaperoneWindow = struct {
     }
 };
 
-fn readOnlyTrackedDevicePoses(label: []const u8, poses: []OpenVR.TrackedDevicePose) void {
-    for (poses, 0..) |pose, i| {
-        zgui.pushIntId(@intCast(i));
-        defer zgui.popId();
-        readOnlyTrackedDevicePose("{s}[{}]", .{ label, i }, pose);
+fn readOnlyTrackedDevicePoses(label: [:0]const u8, poses: []OpenVR.TrackedDevicePose) void {
+    if (poses.len > 0) {
+        for (poses, 0..) |pose, i| {
+            zgui.pushIntId(@intCast(i));
+            defer zgui.popId();
+            readOnlyTrackedDevicePose("{s}[{}]", .{ label, i }, pose);
+        }
+    } else {
+        readOnlyText(label, "(empty)");
     }
 }
 
@@ -670,13 +679,14 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 OpenVR.System.TrackedDeviceProperty.Int32,
                 OpenVR.System.TrackedDeviceProperty.Uint64,
                 OpenVR.System.TrackedDeviceProperty.Matrix34,
+                OpenVR.System.TrackedDeviceProperty.Array.Float,
+                OpenVR.System.TrackedDeviceProperty.Array.Int32,
+                OpenVR.System.TrackedDeviceProperty.Array.Vector4,
+                OpenVR.System.TrackedDeviceProperty.Array.Matrix34,
                 => {
                     _ = zgui.comboFromEnum("property", arg_ptr);
                 },
-                else => {
-                    std.debug.print("{} not implemented\n", .{@typeName(arg_type)});
-                    unreachable;
-                },
+                else => @compileError(@typeName(arg_type) ++ " not implemented"),
             }
             zgui.sameLine(.{});
             zgui.text(", ", .{});
@@ -686,15 +696,37 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
     }
 }
 
-fn guiResult(comptime ResultType: type, result: ResultType) void {
+fn guiResult(comptime Return: type, result: Return) void {
     zgui.indent(.{ .indent_w = 30 });
     defer zgui.unindent(.{ .indent_w = 30 });
-    switch (ResultType) {
+    switch (Return) {
         bool => readOnlyCheckbox("##", result),
         i32 => readOnlyInt("##", result),
+        []i32 => if (result.len > 0) {
+            for (result, 0..) |v, i| {
+                zgui.pushIntId(@intCast(i));
+                defer zgui.popId();
+                readOnlyInt("##", v);
+                zgui.sameLine(.{});
+                zgui.text("[{}]", .{i});
+            }
+        } else {
+            zgui.text("(empty)", .{});
+        },
         u32 => readOnlyScalar("##", u32, result),
         u64 => readOnlyScalar("##", u64, result),
         f32 => readOnlyFloat("##", result),
+        []f32 => if (result.len > 0) {
+            for (result, 0..) |v, i| {
+                zgui.pushIntId(@intCast(i));
+                defer zgui.popId();
+                readOnlyFloat("##", v);
+                zgui.sameLine(.{});
+                zgui.text("[{}]", .{i});
+            }
+        } else {
+            zgui.text("(empty)", .{});
+        },
         OpenVR.System.RenderTargetSize => readOnlyScalarN("##", [2]u32, .{
             @as(OpenVR.System.RenderTargetSize, result).width,
             @as(OpenVR.System.RenderTargetSize, result).height,
@@ -760,20 +792,44 @@ fn guiResult(comptime ResultType: type, result: ResultType) void {
         },
         OpenVR.Color => readOnlyColor4("##", @bitCast(result)),
         OpenVR.Chaperone.BoundsColor => {
-            for (result.bound_colors, 0..) |bound_color, i| {
-                zgui.pushIntId(@intCast(i));
-                defer zgui.popId();
-                readOnlyColor4("bound_colors", @bitCast(bound_color));
-                zgui.sameLine(.{});
-                zgui.text("[{}]", .{i});
+            if (result.bound_colors.len > 0) {
+                for (result.bound_colors, 0..) |bound_color, i| {
+                    zgui.pushIntId(@intCast(i));
+                    defer zgui.popId();
+                    readOnlyColor4("bound_colors", @bitCast(bound_color));
+                    zgui.sameLine(.{});
+                    zgui.text("[{}]", .{i});
+                }
+            } else {
+                readOnlyText("bound_colors", "(empty)");
             }
             readOnlyColor4("camera_color", @bitCast(result.camera_color));
         },
-        OpenVR.Matrix34 => readOnlyMatrix34("", result),
-        else => {
-            std.debug.print("{s} not implemented\n", .{@typeName(ResultType)});
-            unreachable;
+        []OpenVR.Vector4 => if (result.len > 0) {
+            for (result, 0..) |v, i| {
+                zgui.pushIntId(@intCast(i));
+                defer zgui.popId();
+                readOnlyFloat4("", v.v);
+                zgui.sameLine(.{});
+                zgui.text("[{}]", .{i});
+            }
+        } else {
+            zgui.text("(empty)", .{});
         },
+        OpenVR.Matrix34 => readOnlyMatrix34("", result),
+        []OpenVR.Matrix34 => if (result.len > 0) {
+            for (result, 0..) |v, i| {
+                zgui.pushIntId(@intCast(i));
+                defer zgui.popId();
+                readOnlyMatrix34("", v);
+                zgui.sameLine(.{});
+                zgui.text("[{}]", .{i});
+            }
+        } else {
+            zgui.text("(empty)", .{});
+        },
+        OpenVR.Vector4 => readOnlyFloat4("", result.v),
+        else => @compileError(@typeName(Return) ++ " not implemented"),
     }
 }
 
@@ -804,12 +860,13 @@ fn guiGetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
         }
     }
 
-    const ResultType = f_info.return_type.?;
-    const Payload = switch (@typeInfo(ResultType)) {
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+    const Payload = switch (return_type_info) {
         .ErrorUnion => |error_union| error_union.payload,
-        else => ResultType,
+        else => Return,
     };
-    const payload_prefix = switch (@typeInfo(ResultType)) {
+    const payload_prefix = switch (return_type_info) {
         .ErrorUnion => "!",
         else => "",
     };
@@ -820,7 +877,7 @@ fn guiGetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
     }
 
-    const result: Payload = switch (@typeInfo(ResultType)) {
+    const result: Payload = switch (return_type_info) {
         .ErrorUnion => |error_union| switch (error_union.error_set) {
             OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
                 OpenVR.System.TrackedPropertyError.UnknownProperty,
@@ -872,9 +929,9 @@ fn guiAllocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, c
         }
     }
 
-    const Payload = @typeInfo(f_info.return_type.?).ErrorUnion.payload;
-    const result: Payload = try @call(.auto, f, args);
-    defer result.deinit(allocator);
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+    const Payload = return_type_info.ErrorUnion.payload;
 
     {
         zgui.text("{s}(", .{f_name});
@@ -888,6 +945,35 @@ fn guiAllocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, c
         guiParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
     }
+
+    const result: Payload = switch (return_type_info.ErrorUnion.error_set) {
+        OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
+            OpenVR.System.TrackedPropertyError.UnknownProperty,
+            OpenVR.System.TrackedPropertyError.NotYetAvailable,
+            OpenVR.System.TrackedPropertyError.InvalidDevice,
+            => {
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
+                zgui.text("{!}", .{err});
+                zgui.newLine();
+                return;
+            },
+            else => return err,
+        },
+        else => try @call(.auto, f, args),
+    };
+
+    defer switch (Payload) {
+        OpenVR.Chaperone.BoundsColor,
+        OpenVR.Compositor.Poses,
+        => result.deinit(allocator),
+        []f32,
+        []i32,
+        []OpenVR.Vector4,
+        []OpenVR.Matrix34,
+        => allocator.free(result),
+        else => @compileError(@typeName(Payload) ++ " not implemented"),
+    };
 
     guiResult(Payload, result);
     zgui.newLine();
@@ -919,19 +1005,19 @@ fn guiSetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
         }
     }
 
-    const ResultType = f_info.return_type.?;
-    const Payload = switch (@typeInfo(ResultType)) {
+    const Return = f_info.return_type.?;
+    const Payload = switch (@typeInfo(Return)) {
         .ErrorUnion => |error_union| error_union.payload,
-        else => ResultType,
+        else => Return,
     };
     std.debug.assert(@typeInfo(Payload) == .Void);
-    const payload_prefix = switch (@typeInfo(ResultType)) {
+    const payload_prefix = switch (@typeInfo(Return)) {
         .ErrorUnion => "!",
         else => "",
     };
 
     if (zgui.button(f_name, .{})) {
-        switch (@typeInfo(ResultType)) {
+        switch (@typeInfo(Return)) {
             .ErrorUnion => try @call(.auto, f, args),
             else => @call(.auto, f, args),
         }

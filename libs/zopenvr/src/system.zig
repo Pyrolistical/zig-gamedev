@@ -26,10 +26,6 @@ pub const DistortionCoordinates = extern struct {
     blue: [2]f32,
 };
 
-pub const Vector4 = extern struct {
-    v: [4]f32,
-};
-
 pub const TrackedDeviceClass = enum(i32) {
     invalid = 0,
     hmd = 1,
@@ -539,7 +535,7 @@ pub const TrackedDeviceProperty = enum(i32) {
             return switch (T) {
                 f32 => TrackedDeviceProperty.Array.Float,
                 i32 => TrackedDeviceProperty.Array.Int32,
-                Self.Vector4 => TrackedDeviceProperty.Array.Vector4,
+                common.Vector4 => TrackedDeviceProperty.Array.Vector4,
                 common.Matrix34 => TrackedDeviceProperty.Array.Matrix34,
                 else => @compileError("T must be one of f32, i32, Vector4, Matrix34"),
             };
@@ -1173,49 +1169,37 @@ pub fn isTrackedDeviceConnected(self: Self, device_index: common.TrackedDeviceIn
 }
 
 pub fn getTrackedDeviceProperty(self: Self, comptime T: type, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.fromType(T)) TrackedPropertyError!T {
-    return switch (T) {
-        bool => self.getBoolTrackedDeviceProperty(device_index, property),
-        f32 => self.getF32TrackedDeviceProperty(device_index, property),
-        i32 => self.getI32TrackedDeviceProperty(device_index, property),
-        u64 => self.getU64TrackedDeviceProperty(device_index, property),
-        common.Matrix34 => self.getMatrix34TrackedDeviceProperty(device_index, property),
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = switch (T) {
+        bool => self.function_table.GetBoolTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        f32 => self.function_table.GetFloatTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        i32 => self.function_table.GetInt32TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        u64 => self.function_table.GetUint64TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+        common.Matrix34 => self.function_table.GetMatrix34TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
         else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
     };
+    try property_error.maybe();
+    return result;
 }
 
 pub fn getBoolTrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Bool) TrackedPropertyError!bool {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = self.function_table.GetBoolTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
-    try property_error.maybe();
-    return result;
+    return self.getTrackedDeviceProperty(bool, device_index, property);
 }
 
 pub fn getF32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Float) TrackedPropertyError!f32 {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = self.function_table.GetFloatTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
-    try property_error.maybe();
-    return result;
+    return self.getTrackedDeviceProperty(f32, device_index, property);
 }
 
 pub fn getI32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Int32) TrackedPropertyError!i32 {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = self.function_table.GetInt32TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
-    try property_error.maybe();
-    return result;
+    return self.getTrackedDeviceProperty(i32, device_index, property);
 }
 
 pub fn getU64TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Uint64) TrackedPropertyError!u64 {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = self.function_table.GetUint64TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
-    try property_error.maybe();
-    return result;
+    return self.getTrackedDeviceProperty(u64, device_index, property);
 }
 
 pub fn getMatrix34TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Matrix34) TrackedPropertyError!common.Matrix34 {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = self.function_table.GetMatrix34TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
-    try property_error.maybe();
-    return result;
+    return self.getTrackedDeviceProperty(common.Matrix34, device_index, property);
 }
 
 pub const PropertyTypeTagCode = enum(u32) {
@@ -1252,9 +1236,9 @@ pub const PropertyTypeTagCode = enum(u32) {
             f64 => .double,
             common.Matrix34 => .matrix34,
             Matrix44 => .matrix44,
-            common.Vector3 => .vector3,
-            Vector4 => .vector4,
             Vector2 => .vector2,
+            common.Vector3 => .vector3,
+            common.Vector4 => .vector4,
             common.Quad => .quad,
             else => @compileError("unsupported type " ++ @typeName(T)),
         };
@@ -1277,6 +1261,22 @@ pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: 
     }
 
     return @alignCast(std.mem.bytesAsSlice(T, buffer));
+}
+
+pub fn allocFloatArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Float) TrackedPropertyError![]f32 {
+    return self.allocArrayTrackedDeviceProperty(f32, allocator, device_index, property);
+}
+
+pub fn allocI32ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Int32) TrackedPropertyError![]i32 {
+    return self.allocArrayTrackedDeviceProperty(i32, allocator, device_index, property);
+}
+
+pub fn allocVector4ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Vector4) TrackedPropertyError![]common.Vector4 {
+    return self.allocArrayTrackedDeviceProperty(common.Vector4, allocator, device_index, property);
+}
+
+pub fn allocMatrix34ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Matrix34) TrackedPropertyError![]common.Matrix34 {
+    return self.allocArrayTrackedDeviceProperty(common.Matrix34, allocator, device_index, property);
 }
 
 pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.String) TrackedPropertyError![]u8 {
