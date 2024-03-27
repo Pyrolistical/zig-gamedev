@@ -817,7 +817,7 @@ fn guiGetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
     {
         zgui.text("{s}(", .{f_name});
         guiParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-        zgui.text("): {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+        zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
     }
 
     const result: Payload = switch (@typeInfo(ResultType)) {
@@ -886,7 +886,7 @@ fn guiAllocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, c
             zgui.text(",", .{});
         }
         guiParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
-        zgui.text("): {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
+        zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
     }
 
     guiResult(Payload, result);
@@ -939,7 +939,7 @@ fn guiSetter(comptime f_name: [:0]const u8, comptime f: anytype, self: anytype, 
     zgui.sameLine(.{});
     zgui.text("(", .{});
     guiParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text("): {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
 
     zgui.newLine();
 }
