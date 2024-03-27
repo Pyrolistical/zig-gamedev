@@ -103,6 +103,7 @@ const samples_windows_linux = struct {
     pub const minimal_d3d12 = @import("samples/minimal_d3d12/build.zig");
     pub const minimal_glfw_d3d12 = @import("samples/minimal_glfw_d3d12/build.zig");
     pub const minimal_zgui_glfw_d3d12 = @import("samples/minimal_zgui_glfw_d3d12/build.zig");
+    pub const virtual_reality_d3d12 = @import("samples/virtual_reality_d3d12/build.zig");
     pub const rasterization = @import("samples/rasterization/build.zig");
     // TODO: get simple raytracer working again
     //pub const simple_raytracer = @import("samples/simple_raytracer/build.zig");
@@ -258,6 +259,18 @@ fn tests(
     }
 
     // TODO(hazeycode): SDL3 tests
+
+    const zopenvr = b.dependency("zopenvr", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const openvr_tests = b.addRunArtifact(zopenvr.artifact("openvr-tests"));
+    if (target.result.os.tag == .windows) {
+        openvr_tests.setCwd(.{ .path = b.getInstallPath(.bin, "") });
+    }
+    test_step.dependOn(&openvr_tests.step);
+    try @import("zopenvr").install_OpenVR(&openvr_tests.step, target.result, .bin, "libs/zopenvr");
 
     const zjobs = b.dependency("zjobs", .{
         .target = target,

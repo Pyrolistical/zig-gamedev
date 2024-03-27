@@ -1,104 +1,111 @@
 const std = @import("std");
-const assert = std.debug.assert;
 
-pub const Package = struct {
-    target: std.Build.ResolvedTarget,
-    zopenvr: *std.Build.Module,
-    install: *std.Build.Step,
-
-    pub fn link(pkg: Package, exe: *std.Build.Step.Compile) void {
-        exe.root_module.addImport("zopenvr", pkg.zopenvr);
-
-        exe.step.dependOn(pkg.install);
-
-        switch (pkg.target.result.os.tag) {
-            .windows => {
-                assert(pkg.target.result.cpu.arch.isX86());
-
-                exe.addLibraryPath(.{ .path = thisDir() ++ "/libs/openvr/lib/win64" });
-                exe.linkSystemLibrary("openvr_api");
-            },
-            .linux => {
-                assert(pkg.target.result.cpu.arch.isX86());
-                exe.addLibraryPath(.{ .path = thisDir() ++ "/libs/openvr/lib/linux64" });
-                exe.linkSystemLibrary("openvr_api");
-            },
-            else => {},
-        }
-    }
-};
-
-pub fn package(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    _: std.builtin.Mode,
-    _: struct {},
-) Package {
-    const zopenvr = b.addModule("zopenvr", .{
-        .root_source_file = .{ .path = thisDir() ++ "/src/zopenvr.zig" },
-    });
-
-    const install_step = b.allocator.create(std.Build.Step) catch @panic("OOM");
-    install_step.* = std.Build.Step.init(.{ .id = .custom, .name = "zopenvr-install", .owner = b });
-
-    switch (target.result.os.tag) {
-        .windows => {
-            install_step.dependOn(
-                &b.addInstallFile(
-                    .{ .path = thisDir() ++ "/libs/openvr/bin/win64/openvr_api.dll" },
-                    "bin/openvr_api.dll",
-                ).step,
-            );
-        },
-        .linux => {
-            install_step.dependOn(
-                &b.addInstallFile(
-                    .{ .path = thisDir() ++ "/libs/openvr/bin/linux64/libopenvr_api.so" },
-                    "bin/libopenvr_api.so.0",
-                ).step,
-            );
-        },
-        else => {},
-    }
-
-    return .{
-        .target = target,
-        .zopenvr = zopenvr,
-        .install = install_step,
-    };
-}
-
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    const test_step = b.step("test", "Run zopenvr tests");
-    test_step.dependOn(runTests(b, optimize, target));
-
-    _ = package(b, target, optimize, .{});
-}
-
-pub fn runTests(
-    b: *std.Build,
-    optimize: std.builtin.Mode,
-    target: std.Build.ResolvedTarget,
-) *std.Build.Step {
-    const tests = b.addTest(.{
-        .name = "zopenvr-tests",
-        .root_source_file = .{ .path = thisDir() ++ "/src/zopenvr.zig" },
-        .target = target,
-        .optimize = optimize,
+    _ = b.addModule("root", .{
+        .root_source_file = .{ .path = "src/openvr.zig" },
     });
-    const pkg = package(b, target, optimize, .{});
-    pkg.link(tests);
-    var test_run = b.addRunArtifact(tests);
-    switch (target.result.os.tag) {
-        .windows => test_run.setCwd(.{ .path = b.getInstallPath(.bin, "") }),
-        else => tests.addRPath(.{ .path = b.getInstallPath(.bin, "") }),
+
+    {
+        const unit_tests = b.step("test", "Run zopenvr tests");
+        {
+            const tests = b.addTest(.{
+                .name = "openvr-tests",
+                .root_source_file = .{ .path = "src/openvr.zig" },
+                .target = target,
+                .optimize = optimize,
+            });
+            try addLibraryPathsTo(tests, "");
+            link_OpenVR(tests);
+            b.installArtifact(tests);
+
+            const tests_exe = b.addRunArtifact(tests);
+            if (target.result.os.tag == .windows) {
+                tests_exe.setCwd(.{
+                    .path = b.getInstallPath(.bin, ""),
+                });
+            }
+            unit_tests.dependOn(&tests_exe.step);
+        }
+
+        try install_OpenVR(unit_tests, target.result, .bin, "");
     }
-    return &test_run.step;
 }
 
-inline fn thisDir() []const u8 {
-    return comptime std.fs.path.dirname(@src().file) orelse ".";
+pub fn addLibraryPathsTo(
+    compile_step: *std.Build.Step.Compile,
+    source_path_prefix: []const u8,
+) !void {
+    const b = compile_step.step.owner;
+    const target = compile_step.rootModuleTarget();
+    switch (target.os.tag) {
+        .windows => {
+            if (target.cpu.arch.isX86()) {
+                compile_step.addLibraryPath(.{ .path = try std.fs.path.join(
+                    b.allocator,
+                    &.{ source_path_prefix, "libs/openvr/lib/win64" },
+                ) });
+            }
+        },
+        .linux => {
+            if (target.cpu.arch.isX86()) {
+                compile_step.addLibraryPath(.{ .path = try std.fs.path.join(
+                    b.allocator,
+                    &.{ source_path_prefix, "libs/openvr/lib/linux64" },
+                ) });
+            }
+        },
+        else => {},
+    }
+}
+
+pub fn link_OpenVR(compile_step: *std.Build.Step.Compile) void {
+    switch (compile_step.rootModuleTarget().os.tag) {
+        .windows, .linux => {
+            compile_step.linkSystemLibrary("openvr_api");
+        },
+        else => {},
+    }
+}
+
+pub fn install_OpenVR(
+    step: *std.Build.Step,
+    target: std.Target,
+    install_dir: std.Build.InstallDir,
+    source_path_prefix: []const u8,
+) !void {
+    const b = step.owner;
+    switch (target.os.tag) {
+        .windows => {
+            if (target.cpu.arch.isX86()) {
+                step.dependOn(
+                    &b.addInstallFileWithDir(
+                        .{ .path = try std.fs.path.join(b.allocator, &.{
+                            source_path_prefix,
+                            "libs/openvr/bin/win64/openvr_api.dll",
+                        }) },
+                        install_dir,
+                        "openvr_api.dll",
+                    ).step,
+                );
+            }
+        },
+        .linux => {
+            if (target.cpu.arch.isX86()) {
+                step.dependOn(
+                    &b.addInstallFileWithDir(
+                        .{ .path = try std.fs.path.join(b.allocator, &.{
+                            source_path_prefix,
+                            "libs/openvr/bin/linux64/libopenvr_api.so",
+                        }) },
+                        install_dir,
+                        "libopenvr_api.so.0",
+                    ).step,
+                );
+            }
+        },
+        else => {},
+    }
 }
