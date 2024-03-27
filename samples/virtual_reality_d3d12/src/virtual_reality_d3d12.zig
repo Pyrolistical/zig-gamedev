@@ -363,22 +363,22 @@ const SystemWindow = struct {
     tracked_device_property_bool: OpenVR.System.TrackedDeviceProperty.Bool = .will_drift_in_yaw,
 
     tracked_device_property_device_index_f32: OpenVR.TrackedDeviceIndex = 0,
-    tracked_device_property_f32: OpenVR.System.TrackedDeviceProperty.Float = .device_battery_percentage,
+    tracked_device_property_f32: OpenVR.System.TrackedDeviceProperty.F32 = .device_battery_percentage,
 
     tracked_device_property_device_index_i32: OpenVR.TrackedDeviceIndex = 0,
-    tracked_device_property_i32: OpenVR.System.TrackedDeviceProperty.Int32 = .device_class,
+    tracked_device_property_i32: OpenVR.System.TrackedDeviceProperty.I32 = .device_class,
 
     tracked_device_property_device_index_u64: OpenVR.TrackedDeviceIndex = 0,
-    tracked_device_property_u64: OpenVR.System.TrackedDeviceProperty.Uint64 = .hardware_revision,
+    tracked_device_property_u64: OpenVR.System.TrackedDeviceProperty.U64 = .hardware_revision,
 
     tracked_device_property_device_index_matrix34: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_matrix34: OpenVR.System.TrackedDeviceProperty.Matrix34 = .status_display_transform,
 
     tracked_device_property_device_index_f32_array: OpenVR.TrackedDeviceIndex = 0,
-    tracked_device_property_f32_array: OpenVR.System.TrackedDeviceProperty.Array.Float = .camera_distortion_coefficients,
+    tracked_device_property_f32_array: OpenVR.System.TrackedDeviceProperty.Array.F32 = .camera_distortion_coefficients,
 
     tracked_device_property_device_index_i32_array: OpenVR.TrackedDeviceIndex = 0,
-    tracked_device_property_i32_array: OpenVR.System.TrackedDeviceProperty.Array.Int32 = .camera_distortion_function,
+    tracked_device_property_i32_array: OpenVR.System.TrackedDeviceProperty.Array.I32 = .camera_distortion_function,
 
     tracked_device_property_device_index_vector4_array: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_vector4_array: OpenVR.System.TrackedDeviceProperty.Array.Vector4 = .camera_white_balance,
@@ -418,7 +418,7 @@ const SystemWindow = struct {
                 .property = &self.tracked_device_property_matrix34,
             }, null);
 
-            try guiAllocGetter(allocator, "allocFloatArrayTrackedDeviceProperty", OpenVR.System.allocFloatArrayTrackedDeviceProperty, system, .{
+            try guiAllocGetter(allocator, "allocF32ArrayTrackedDeviceProperty", OpenVR.System.allocF32ArrayTrackedDeviceProperty, system, .{
                 .device_index = &self.tracked_device_property_device_index_f32_array,
                 .property = &self.tracked_device_property_f32_array,
             }, null);
@@ -671,12 +671,12 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                     _ = zgui.comboFromEnum("origin", arg_ptr);
                 },
                 OpenVR.System.TrackedDeviceProperty.Bool,
-                OpenVR.System.TrackedDeviceProperty.Float,
-                OpenVR.System.TrackedDeviceProperty.Int32,
-                OpenVR.System.TrackedDeviceProperty.Uint64,
+                OpenVR.System.TrackedDeviceProperty.F32,
+                OpenVR.System.TrackedDeviceProperty.I32,
+                OpenVR.System.TrackedDeviceProperty.U64,
                 OpenVR.System.TrackedDeviceProperty.Matrix34,
-                OpenVR.System.TrackedDeviceProperty.Array.Float,
-                OpenVR.System.TrackedDeviceProperty.Array.Int32,
+                OpenVR.System.TrackedDeviceProperty.Array.F32,
+                OpenVR.System.TrackedDeviceProperty.Array.I32,
                 OpenVR.System.TrackedDeviceProperty.Array.Vector4,
                 OpenVR.System.TrackedDeviceProperty.Array.Matrix34,
                 OpenVR.System.TrackedDeviceProperty.String,

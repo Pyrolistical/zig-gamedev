@@ -289,9 +289,9 @@ pub const TrackedDeviceProperty = enum(i32) {
     pub fn fromType(comptime T: type) type {
         return switch (T) {
             bool => TrackedDeviceProperty.Bool,
-            f32 => TrackedDeviceProperty.Float,
-            i32 => TrackedDeviceProperty.Int32,
-            u64 => TrackedDeviceProperty.Uint64,
+            f32 => TrackedDeviceProperty.F32,
+            i32 => TrackedDeviceProperty.I32,
+            u64 => TrackedDeviceProperty.U64,
             common.Matrix34 => TrackedDeviceProperty.Matrix34,
             else => @compileError("T must be one of bool, f32, i32, u64, Matrix34"),
         };
@@ -358,7 +358,7 @@ pub const TrackedDeviceProperty = enum(i32) {
         supports_xr_texture_sets = @intFromEnum(TrackedDeviceProperty.supports_xr_texture_sets_bool),
     };
 
-    pub const Float = enum(i32) {
+    pub const F32 = enum(i32) {
         device_battery_percentage = @intFromEnum(TrackedDeviceProperty.device_battery_percentage_float),
         device_power_usage = @intFromEnum(TrackedDeviceProperty.device_power_usage_float),
         seconds_from_vsync_to_photons = @intFromEnum(TrackedDeviceProperty.seconds_from_vsync_to_photons_float),
@@ -397,7 +397,7 @@ pub const TrackedDeviceProperty = enum(i32) {
         tracking_range_maximum_meters = @intFromEnum(TrackedDeviceProperty.tracking_range_maximum_meters_float),
     };
 
-    pub const Int32 = enum(i32) {
+    pub const I32 = enum(i32) {
         device_class = @intFromEnum(TrackedDeviceProperty.device_class_int32),
         num_cameras = @intFromEnum(TrackedDeviceProperty.num_cameras_int32),
         camera_frame_layout = @intFromEnum(TrackedDeviceProperty.camera_frame_layout_int32),
@@ -439,7 +439,7 @@ pub const TrackedDeviceProperty = enum(i32) {
         controller_hand_selection_priority = @intFromEnum(TrackedDeviceProperty.controller_hand_selection_priority_int32),
     };
 
-    pub const Uint64 = enum(i32) {
+    pub const U64 = enum(i32) {
         hardware_revision = @intFromEnum(TrackedDeviceProperty.hardware_revision_uint64),
         firmware_version = @intFromEnum(TrackedDeviceProperty.firmware_version_uint64),
         fpga_version = @intFromEnum(TrackedDeviceProperty.fpga_version_uint64),
@@ -533,20 +533,20 @@ pub const TrackedDeviceProperty = enum(i32) {
 
         pub fn fromType(comptime T: type) type {
             return switch (T) {
-                f32 => TrackedDeviceProperty.Array.Float,
-                i32 => TrackedDeviceProperty.Array.Int32,
+                f32 => TrackedDeviceProperty.Array.F32,
+                i32 => TrackedDeviceProperty.Array.I32,
                 common.Vector4 => TrackedDeviceProperty.Array.Vector4,
                 common.Matrix34 => TrackedDeviceProperty.Array.Matrix34,
                 else => @compileError("T must be one of f32, i32, Vector4, Matrix34"),
             };
         }
 
-        pub const Float = enum(i32) {
+        pub const F32 = enum(i32) {
             camera_distortion_coefficients = @intFromEnum(TrackedDeviceProperty.camera_distortion_coefficients_float_array),
             display_available_frame_rates = @intFromEnum(TrackedDeviceProperty.display_available_frame_rates_float_array),
         };
 
-        pub const Int32 = enum(i32) {
+        pub const I32 = enum(i32) {
             camera_distortion_function = @intFromEnum(TrackedDeviceProperty.camera_distortion_function_int32_array),
         };
 
@@ -1186,15 +1186,15 @@ pub fn getBoolTrackedDeviceProperty(self: Self, device_index: common.TrackedDevi
     return self.getTrackedDeviceProperty(bool, device_index, property);
 }
 
-pub fn getF32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Float) TrackedPropertyError!f32 {
+pub fn getF32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.F32) TrackedPropertyError!f32 {
     return self.getTrackedDeviceProperty(f32, device_index, property);
 }
 
-pub fn getI32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Int32) TrackedPropertyError!i32 {
+pub fn getI32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.I32) TrackedPropertyError!i32 {
     return self.getTrackedDeviceProperty(i32, device_index, property);
 }
 
-pub fn getU64TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Uint64) TrackedPropertyError!u64 {
+pub fn getU64TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.U64) TrackedPropertyError!u64 {
     return self.getTrackedDeviceProperty(u64, device_index, property);
 }
 
@@ -1263,11 +1263,11 @@ pub fn allocArrayTrackedDeviceProperty(self: Self, comptime T: type, allocator: 
     return @alignCast(std.mem.bytesAsSlice(T, buffer));
 }
 
-pub fn allocFloatArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Float) TrackedPropertyError![]f32 {
+pub fn allocF32ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.F32) TrackedPropertyError![]f32 {
     return self.allocArrayTrackedDeviceProperty(f32, allocator, device_index, property);
 }
 
-pub fn allocI32ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.Int32) TrackedPropertyError![]i32 {
+pub fn allocI32ArrayTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Array.I32) TrackedPropertyError![]i32 {
     return self.allocArrayTrackedDeviceProperty(i32, allocator, device_index, property);
 }
 
