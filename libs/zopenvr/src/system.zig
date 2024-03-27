@@ -1173,15 +1173,47 @@ pub fn isTrackedDeviceConnected(self: Self, device_index: common.TrackedDeviceIn
 }
 
 pub fn getTrackedDeviceProperty(self: Self, comptime T: type, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.fromType(T)) TrackedPropertyError!T {
-    var property_error: TrackedPropertyErrorCode = undefined;
-    const result = switch (T) {
-        bool => self.function_table.GetBoolTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
-        f32 => self.function_table.GetFloatTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
-        i32 => self.function_table.GetInt32TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
-        u64 => self.function_table.GetUint64TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
-        common.Matrix34 => self.function_table.GetMatrix34TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error),
+    return switch (T) {
+        bool => self.getBoolTrackedDeviceProperty(device_index, property),
+        f32 => self.getF32TrackedDeviceProperty(device_index, property),
+        i32 => self.getI32TrackedDeviceProperty(device_index, property),
+        u64 => self.getU64TrackedDeviceProperty(device_index, property),
+        common.Matrix34 => self.getMatrix34TrackedDeviceProperty(device_index, property),
         else => @compileError("T must be bool, f32, i32, u64, Matrix34"),
     };
+}
+
+pub fn getBoolTrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Bool) TrackedPropertyError!bool {
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = self.function_table.GetBoolTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
+    try property_error.maybe();
+    return result;
+}
+
+pub fn getF32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Float) TrackedPropertyError!f32 {
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = self.function_table.GetFloatTrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
+    try property_error.maybe();
+    return result;
+}
+
+pub fn getI32TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Int32) TrackedPropertyError!i32 {
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = self.function_table.GetInt32TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
+    try property_error.maybe();
+    return result;
+}
+
+pub fn getU64TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Uint64) TrackedPropertyError!u64 {
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = self.function_table.GetUint64TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
+    try property_error.maybe();
+    return result;
+}
+
+pub fn getMatrix34TrackedDeviceProperty(self: Self, device_index: common.TrackedDeviceIndex, property: TrackedDeviceProperty.Matrix34) TrackedPropertyError!common.Matrix34 {
+    var property_error: TrackedPropertyErrorCode = undefined;
+    const result = self.function_table.GetMatrix34TrackedDeviceProperty(device_index, @enumFromInt(@intFromEnum(property)), &property_error);
     try property_error.maybe();
     return result;
 }
