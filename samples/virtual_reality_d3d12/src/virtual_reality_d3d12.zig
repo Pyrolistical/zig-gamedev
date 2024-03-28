@@ -584,6 +584,8 @@ const OpenVRWindow = struct {
 
         defer zgui.end();
         if (zgui.begin("OpenVR", .{ .flags = .{ .always_auto_resize = true } })) {
+            try ui.staticGetter("isHmdPresent", OpenVR, .{}, null);
+            try ui.staticGetter("isRuntimeInstalled", OpenVR, .{}, null);
             if (self.openvr) |openvr| {
                 if (zgui.button("deinit()", .{})) {
                     openvr.deinit();
@@ -593,9 +595,6 @@ const OpenVRWindow = struct {
                     self.compositor = null;
                     return;
                 }
-
-                try ui.getter("isHmdPresent", OpenVR, openvr, .{}, null);
-                try ui.getter("isRuntimeInstalled", OpenVR, openvr, .{}, null);
 
                 if (self.system == null) {
                     self.system_init_error = OpenVR.InitError.None;

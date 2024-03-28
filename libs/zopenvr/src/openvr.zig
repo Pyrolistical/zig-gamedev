@@ -40,14 +40,10 @@ test "init/shutdown utility" {
     defer instance.deinit();
 }
 
-pub fn isHmdPresent(_: Self) bool {
-    return VR_IsHmdPresent();
-}
+pub const isHmdPresent = VR_IsHmdPresent;
 extern fn VR_IsHmdPresent() callconv(.C) bool;
 
-pub fn isRuntimeInstalled(_: Self) bool {
-    return VR_IsRuntimeInstalled();
-}
+pub const isRuntimeInstalled = VR_IsRuntimeInstalled;
 extern fn VR_IsRuntimeInstalled() callconv(.C) bool;
 
 pub fn system(_: Self) common.InitError!System {
