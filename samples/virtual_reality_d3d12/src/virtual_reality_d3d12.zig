@@ -765,6 +765,14 @@ fn guiResult(comptime Return: type, result: Return) void {
                 return;
             }
         },
+        .Optional => |optional| {
+            if (result) |v| {
+                guiResult(optional.child, v);
+            } else {
+                zgui.text("null", .{});
+            }
+            return;
+        },
         else => {},
     }
     zgui.indent(.{ .indent_w = 30 });
@@ -779,32 +787,18 @@ fn guiResult(comptime Return: type, result: Return) void {
             @as(OpenVR.System.RenderTargetSize, result).width,
             @as(OpenVR.System.RenderTargetSize, result).height,
         }),
-        ?OpenVR.Compositor.FrameTiming => {
-            if (result) |frame_timing| {
-                readOnlyFrameTiming(frame_timing);
-            } else {
-                zgui.text("null", .{});
-            }
-        },
+        OpenVR.Compositor.FrameTiming => readOnlyFrameTiming(result),
         [:0]u8, [:0]const u8 => readOnlyText("##", result),
         OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##", @tagName(result)),
-        ?OpenVR.Chaperone.PlayAreaSize => {
-            if (result) |play_area_size| {
-                readOnlyFloat("x", play_area_size.x);
-                readOnlyFloat("z", play_area_size.z);
-            } else {
-                zgui.text("null", .{});
-            }
+        OpenVR.Chaperone.PlayAreaSize => {
+            readOnlyFloat("x", result.x);
+            readOnlyFloat("z", result.z);
         },
-        ?OpenVR.Quad => {
-            if (result) |quad| {
-                readOnlyFloat3("corners[0]", quad.corners[0].v);
-                readOnlyFloat3("corners[1]", quad.corners[1].v);
-                readOnlyFloat3("corners[2]", quad.corners[2].v);
-                readOnlyFloat3("corners[3]", quad.corners[3].v);
-            } else {
-                zgui.text("null", .{});
-            }
+        OpenVR.Quad => {
+            readOnlyFloat3("corners[0]", result.corners[0].v);
+            readOnlyFloat3("corners[1]", result.corners[1].v);
+            readOnlyFloat3("corners[2]", result.corners[2].v);
+            readOnlyFloat3("corners[3]", result.corners[3].v);
         },
         OpenVR.Compositor.CumulativeStats => {
             readOnlyScalar("pid", u32, result.pid);
@@ -862,14 +856,10 @@ fn guiResult(comptime Return: type, result: Return) void {
             readOnlyFloat("top", result.top);
             readOnlyFloat("bottom", result.bottom);
         },
-        ?OpenVR.System.DistortionCoordinates => {
-            if (result) |distortion_coordinates| {
-                readOnlyFloat2("red", distortion_coordinates.red);
-                readOnlyFloat2("green", distortion_coordinates.green);
-                readOnlyFloat2("blue", distortion_coordinates.blue);
-            } else {
-                zgui.text("null", .{});
-            }
+        OpenVR.System.DistortionCoordinates => {
+            readOnlyFloat2("red", result.red);
+            readOnlyFloat2("green", result.green);
+            readOnlyFloat2("blue", result.blue);
         },
         else => @compileError(@typeName(Return) ++ " not implemented"),
     }
