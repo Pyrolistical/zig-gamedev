@@ -392,6 +392,12 @@ const SystemWindow = struct {
     projection_matrix_near: f32 = 0,
     projection_matrix_far: f32 = 0,
 
+    projection_raw_eye: OpenVR.Eye = .left,
+
+    compute_distortion_eye: OpenVR.Eye = .left,
+    compute_distortion_u: f32 = 0,
+    compute_distortion_v: f32 = 0,
+
     tracked_device_property_device_index_bool: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_bool: OpenVR.System.TrackedDeviceProperty.Bool = .will_drift_in_yaw,
 
@@ -431,6 +437,14 @@ const SystemWindow = struct {
                 .eye = &self.projection_matrix_eye,
                 .near = &self.projection_matrix_near,
                 .far = &self.projection_matrix_far,
+            }, null);
+            try guiGetter("getProjectionRaw", OpenVR.System.getProjectionRaw, system, .{
+                .eye = &self.projection_raw_eye,
+            }, null);
+            try guiGetter("computeDistortion", OpenVR.System.computeDistortion, system, .{
+                .eye = &self.compute_distortion_eye,
+                .u = &self.compute_distortion_u,
+                .v = &self.compute_distortion_v,
             }, null);
 
             try guiGetter("getBoolTrackedDeviceProperty", OpenVR.System.getBoolTrackedDeviceProperty, system, .{
@@ -860,6 +874,15 @@ fn guiResult(comptime Return: type, result: Return) void {
             readOnlyFloat("right", result.right);
             readOnlyFloat("top", result.top);
             readOnlyFloat("bottom", result.bottom);
+        },
+        ?OpenVR.System.DistortionCoordinates => {
+            if (result) |distortion_coordinates| {
+                readOnlyFloat2("red", distortion_coordinates.red);
+                readOnlyFloat2("green", distortion_coordinates.green);
+                readOnlyFloat2("blue", distortion_coordinates.blue);
+            } else {
+                zgui.text("null", .{});
+            }
         },
         []OpenVR.Matrix34 => if (result.len > 0) {
             for (result, 0..) |v, i| {

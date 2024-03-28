@@ -1094,7 +1094,7 @@ pub const RawProjection = struct {
     bottom: f32,
 };
 pub fn getProjectionRaw(self: Self, eye: common.Eye) RawProjection {
-    var raw_projection: RawProjection = .{};
+    var raw_projection: RawProjection = undefined;
     self.function_table.GetProjectionRaw(eye, &raw_projection.left, &raw_projection.right, &raw_projection.top, &raw_projection.bottom);
     return raw_projection;
 }
