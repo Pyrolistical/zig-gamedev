@@ -748,36 +748,33 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
 }
 
 fn guiResult(comptime Return: type, result: Return) void {
+    switch (@typeInfo(Return)) {
+        .Pointer => |pointer| {
+            if (pointer.size == .Slice and pointer.child != u8) {
+                if (result.len > 0) {
+                    for (result, 0..) |v, i| {
+                        zgui.pushIntId(@intCast(i));
+                        defer zgui.popId();
+                        guiResult(pointer.child, v);
+                        zgui.sameLine(.{});
+                        zgui.text("[{}]", .{i});
+                    }
+                } else {
+                    zgui.text("(empty)", .{});
+                }
+                return;
+            }
+        },
+        else => {},
+    }
     zgui.indent(.{ .indent_w = 30 });
     defer zgui.unindent(.{ .indent_w = 30 });
     switch (Return) {
         bool => readOnlyCheckbox("##", result),
         i32 => readOnlyInt("##", result),
-        []i32 => if (result.len > 0) {
-            for (result, 0..) |v, i| {
-                zgui.pushIntId(@intCast(i));
-                defer zgui.popId();
-                readOnlyInt("##", v);
-                zgui.sameLine(.{});
-                zgui.text("[{}]", .{i});
-            }
-        } else {
-            zgui.text("(empty)", .{});
-        },
         u32 => readOnlyScalar("##", u32, result),
         u64 => readOnlyScalar("##", u64, result),
         f32 => readOnlyFloat("##", result),
-        []f32 => if (result.len > 0) {
-            for (result, 0..) |v, i| {
-                zgui.pushIntId(@intCast(i));
-                defer zgui.popId();
-                readOnlyFloat("##", v);
-                zgui.sameLine(.{});
-                zgui.text("[{}]", .{i});
-            }
-        } else {
-            zgui.text("(empty)", .{});
-        },
         OpenVR.System.RenderTargetSize => readOnlyScalarN("##", [2]u32, .{
             @as(OpenVR.System.RenderTargetSize, result).width,
             @as(OpenVR.System.RenderTargetSize, result).height,
@@ -789,7 +786,7 @@ fn guiResult(comptime Return: type, result: Return) void {
                 zgui.text("null", .{});
             }
         },
-        [:0]const u8 => readOnlyText("##", result),
+        [:0]u8, [:0]const u8 => readOnlyText("##", result),
         OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##", @tagName(result)),
         ?OpenVR.Chaperone.PlayAreaSize => {
             if (result) |play_area_size| {
@@ -856,17 +853,7 @@ fn guiResult(comptime Return: type, result: Return) void {
             }
             readOnlyColor4("camera_color", @bitCast(result.camera_color));
         },
-        []OpenVR.Vector4 => if (result.len > 0) {
-            for (result, 0..) |v, i| {
-                zgui.pushIntId(@intCast(i));
-                defer zgui.popId();
-                readOnlyFloat4("##", v.v);
-                zgui.sameLine(.{});
-                zgui.text("[{}]", .{i});
-            }
-        } else {
-            zgui.text("(empty)", .{});
-        },
+        OpenVR.Vector4 => readOnlyFloat4("##", result.v),
         OpenVR.Matrix34 => readOnlyMatrix34(null, result),
         OpenVR.Matrix44 => readOnlyMatrix44(null, result),
         OpenVR.System.RawProjection => {
@@ -884,19 +871,6 @@ fn guiResult(comptime Return: type, result: Return) void {
                 zgui.text("null", .{});
             }
         },
-        []OpenVR.Matrix34 => if (result.len > 0) {
-            for (result, 0..) |v, i| {
-                zgui.pushIntId(@intCast(i));
-                defer zgui.popId();
-                readOnlyMatrix34(null, v);
-                zgui.sameLine(.{});
-                zgui.text("[{}]", .{i});
-            }
-        } else {
-            zgui.text("(empty)", .{});
-        },
-        OpenVR.Vector4 => readOnlyFloat4("##", result.v),
-        [:0]u8 => zgui.text("{s}", .{result}),
         else => @compileError(@typeName(Return) ++ " not implemented"),
     }
 }
