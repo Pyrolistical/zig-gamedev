@@ -343,17 +343,16 @@ fn readOnlyMatrix34(label: ?[:0]const u8, v: OpenVR.Matrix34) void {
         zgui.text("{s}", .{l});
 
         zgui.pushStrId(l);
-        defer zgui.popId();
         zgui.indent(.{ .indent_w = 30 });
-        defer zgui.unindent(.{ .indent_w = 30 });
+    }
 
-        readOnlyFloat4("m[0]", v.m[0]);
-        readOnlyFloat4("m[1]", v.m[1]);
-        readOnlyFloat4("m[2]", v.m[2]);
-    } else {
-        readOnlyFloat4("m[0]", v.m[0]);
-        readOnlyFloat4("m[1]", v.m[1]);
-        readOnlyFloat4("m[2]", v.m[2]);
+    readOnlyFloat4("m[0]", v.m[0]);
+    readOnlyFloat4("m[1]", v.m[1]);
+    readOnlyFloat4("m[2]", v.m[2]);
+
+    if (label != null) {
+        zgui.unindent(.{ .indent_w = 30 });
+        zgui.popId();
     }
 }
 
@@ -362,19 +361,17 @@ fn readOnlyMatrix44(label: ?[:0]const u8, v: OpenVR.Matrix44) void {
         zgui.text("{s}", .{l});
 
         zgui.pushStrId(l);
-        defer zgui.popId();
         zgui.indent(.{ .indent_w = 30 });
-        defer zgui.unindent(.{ .indent_w = 30 });
+    }
 
-        readOnlyFloat4("m[0]", v.m[0]);
-        readOnlyFloat4("m[1]", v.m[1]);
-        readOnlyFloat4("m[2]", v.m[2]);
-        readOnlyFloat4("m[3]", v.m[3]);
-    } else {
-        readOnlyFloat4("m[0]", v.m[0]);
-        readOnlyFloat4("m[1]", v.m[1]);
-        readOnlyFloat4("m[2]", v.m[2]);
-        readOnlyFloat4("m[3]", v.m[3]);
+    readOnlyFloat4("m[0]", v.m[0]);
+    readOnlyFloat4("m[1]", v.m[1]);
+    readOnlyFloat4("m[2]", v.m[2]);
+    readOnlyFloat4("m[3]", v.m[3]);
+
+    if (label != null) {
+        zgui.unindent(.{ .indent_w = 30 });
+        zgui.popId();
     }
 }
 
@@ -555,7 +552,12 @@ fn readOnlyTrackedDevicePose(comptime fmt: []const u8, args: anytype, pose: Open
     }
 }
 
-fn readOnlyFrameTiming(frame_timing: OpenVR.Compositor.FrameTiming) void {
+fn readOnlyFrameTiming(comptime fmt: ?[]const u8, args: anytype, frame_timing: OpenVR.Compositor.FrameTiming) void {
+    if (fmt) |f| {
+        zgui.text(f, args);
+        zgui.indent(.{ .indent_w = 30 });
+    }
+
     readOnlyScalar("size", u32, frame_timing.size);
     readOnlyScalar("frame_index", u32, frame_timing.frame_index);
     readOnlyScalar("num_frame_presents", u32, frame_timing.num_frame_presents);
@@ -582,6 +584,10 @@ fn readOnlyFrameTiming(frame_timing: OpenVR.Compositor.FrameTiming) void {
     readOnlyTrackedDevicePose("pose", .{}, frame_timing.pose);
     readOnlyScalar("num_v_syncs_ready_for_use", u32, frame_timing.num_v_syncs_ready_for_use);
     readOnlyScalar("num_v_syncs_to_first_view", u32, frame_timing.num_v_syncs_to_first_view);
+
+    if (fmt != null) {
+        zgui.unindent(.{ .indent_w = 30 });
+    }
 }
 
 const CompositorWindow = struct {
@@ -591,7 +597,7 @@ const CompositorWindow = struct {
     last_game_poses_count: usize = 1,
     last_pose_device_index: u32 = 0,
     frame_timing_frames_ago: u32 = 0,
-    frame_timing_frames: u32 = 1,
+    frame_timing_frames: usize = 1,
     fade_color_seconds: f32 = 0,
     fade_color_background: bool = false,
     fade_color: OpenVR.Color = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
@@ -630,29 +636,9 @@ const CompositorWindow = struct {
             try guiGetter("getFrameTiming", OpenVR.Compositor.getFrameTiming, compositor, .{
                 .frames_ago = &self.frame_timing_frames_ago,
             }, "?FrameTiming");
-            {
-                zgui.separatorText("Frame timing");
-                {
-                    zgui.text("Frames", .{});
-                    zgui.pushStrId("allocFrameTimings");
-                    defer zgui.popId();
-
-                    _ = zgui.inputScalar("frames", u32, .{
-                        .v = &self.frame_timing_frames,
-                        .step = 1,
-                    });
-                    if (self.frame_timing_frames < 1) {
-                        self.frame_timing_frames = 1;
-                    }
-                    const frames = try compositor.allocFrameTimings(allocator, self.frame_timing_frames);
-                    defer allocator.free(frames);
-                    for (frames, 0..) |frame_timing, i| {
-                        zgui.pushIntId(@intCast(i));
-                        defer zgui.popId();
-                        readOnlyFrameTiming(frame_timing);
-                    }
-                }
-            }
+            try guiAllocGetter(allocator, "allocFrameTimings", OpenVR.Compositor.allocFrameTimings, compositor, .{
+                .frames = &self.frame_timing_frames,
+            }, "?FrameTiming");
             try guiGetter("getFrameTimeRemaining", OpenVR.Compositor.getFrameTimeRemaining, compositor, .{}, null);
             try guiGetter("getCumulativeStats", OpenVR.Compositor.getCumulativeStats, compositor, .{}, null);
             try guiGetter("getCurrentFadeColor", OpenVR.Compositor.getCurrentFadeColor, compositor, .{ .background = &self.current_fade_color_background }, null);
@@ -750,7 +736,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
 fn guiResult(comptime Return: type, result: Return) void {
     switch (@typeInfo(Return)) {
         .Pointer => |pointer| {
-            if (pointer.size == .Slice and pointer.child != u8) {
+            if (pointer.size == .Slice and pointer.child != u8 and pointer.child != OpenVR.Compositor.FrameTiming) {
                 if (result.len > 0) {
                     for (result, 0..) |v, i| {
                         zgui.pushIntId(@intCast(i));
@@ -787,7 +773,16 @@ fn guiResult(comptime Return: type, result: Return) void {
             @as(OpenVR.System.RenderTargetSize, result).width,
             @as(OpenVR.System.RenderTargetSize, result).height,
         }),
-        OpenVR.Compositor.FrameTiming => readOnlyFrameTiming(result),
+        OpenVR.Compositor.FrameTiming => readOnlyFrameTiming(null, .{}, result),
+        []OpenVR.Compositor.FrameTiming => {
+            if (result.len > 0) {
+                for (result, 0..) |frame_timing, i| {
+                    readOnlyFrameTiming("[{}]", .{i}, frame_timing);
+                }
+            } else {
+                zgui.text("(empty)", .{});
+            }
+        },
         [:0]u8, [:0]const u8 => readOnlyText("##", result),
         OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##", @tagName(result)),
         OpenVR.Chaperone.PlayAreaSize => {
@@ -1004,6 +999,7 @@ fn guiAllocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, c
         []i32,
         []OpenVR.Vector4,
         []OpenVR.Matrix34,
+        []OpenVR.Compositor.FrameTiming,
         => allocator.free(result),
         else => @compileError(@typeName(Payload) ++ " not implemented"),
     };

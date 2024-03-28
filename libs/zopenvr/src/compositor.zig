@@ -228,6 +228,9 @@ pub fn getFrameTiming(self: Self, frames_ago: u32) ?FrameTiming {
 
 pub fn allocFrameTimings(self: Self, allocator: std.mem.Allocator, frames: usize) ![]FrameTiming {
     var frame_timings: []FrameTiming = try allocator.alloc(FrameTiming, frames);
+    if (frames == 0) {
+        return frame_timings;
+    }
     frame_timings[0].size = @sizeOf(FrameTiming);
     const length = self.function_table.GetFrameTimings(@ptrCast(frame_timings.ptr), @intCast(frame_timings.len));
     return frame_timings[0..length];
