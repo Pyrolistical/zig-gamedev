@@ -684,7 +684,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
             @compileError(std.fmt.comptimePrint("expected arg_ptrs to have {} fields, but was {}", .{ arg_types.len, arg_ptrs_info.fields.len }));
         }
         inline for (arg_types, 0..) |arg_type, i| {
-            const arg_name: [:0]const u8 = arg_ptrs_info.fields[i].name ++ "";
+            const arg_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{arg_ptrs_info.fields[i].name});
             const arg_ptr = @field(arg_ptrs, arg_name);
             switch (arg_type) {
                 bool => {
@@ -846,7 +846,7 @@ fn guiResult(comptime Return: type, result: Return) void {
             for (result, 0..) |v, i| {
                 zgui.pushIntId(@intCast(i));
                 defer zgui.popId();
-                readOnlyFloat4("", v.v);
+                readOnlyFloat4("##", v.v);
                 zgui.sameLine(.{});
                 zgui.text("[{}]", .{i});
             }
@@ -872,7 +872,7 @@ fn guiResult(comptime Return: type, result: Return) void {
         } else {
             zgui.text("(empty)", .{});
         },
-        OpenVR.Vector4 => readOnlyFloat4("", result.v),
+        OpenVR.Vector4 => readOnlyFloat4("##", result.v),
         [:0]u8 => zgui.text("{s}", .{result}),
         else => @compileError(@typeName(Return) ++ " not implemented"),
     }
