@@ -182,6 +182,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 OpenVR.Color => {
                     _ = zgui.colorEdit4(arg_name, .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
                 },
+                OpenVR.InitErrorCode,
                 OpenVR.TrackingUniverseOrigin,
                 OpenVR.Eye,
                 OpenVR.System.TrackedDeviceProperty.Bool,
@@ -194,6 +195,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
                 OpenVR.System.TrackedDeviceProperty.Array.Vector4,
                 OpenVR.System.TrackedDeviceProperty.Array.Matrix34,
                 OpenVR.System.TrackedDeviceProperty.String,
+                OpenVR.System.TrackedPropertyErrorCode,
                 => {
                     _ = zgui.comboFromEnum(arg_name, arg_ptr);
                 },
@@ -257,7 +259,7 @@ fn guiResult(comptime Return: type, result: Return) void {
                 zgui.text("(empty)", .{});
             }
         },
-        [:0]u8, [:0]const u8 => readOnlyText("##", result),
+        [:0]u8, [:0]const u8, []const u8 => readOnlyText("##", result),
         OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##", @tagName(result)),
         OpenVR.Chaperone.PlayAreaSize => {
             readOnlyFloat("x", result.x);
@@ -376,6 +378,71 @@ pub fn getter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs
     {
         zgui.text("{s}(", .{f_name});
         guiParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
+        zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+    }
+
+    const result: Payload = switch (return_type_info) {
+        .ErrorUnion => |error_union| switch (error_union.error_set) {
+            OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
+                OpenVR.System.TrackedPropertyError.UnknownProperty,
+                OpenVR.System.TrackedPropertyError.NotYetAvailable,
+                OpenVR.System.TrackedPropertyError.InvalidDevice,
+                => {
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+                    zgui.text("{!}", .{err});
+                    zgui.newLine();
+                    return;
+                },
+                else => return err,
+            },
+            else => try @call(.auto, f, args),
+        },
+        else => @call(.auto, f, args),
+    };
+
+    guiResult(Payload, result);
+    zgui.newLine();
+}
+
+pub fn staticGetter(comptime f_name: [:0]const u8, comptime T: type, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
+    zgui.pushStrId(f_name);
+    defer zgui.popId();
+
+    const f = @field(T, f_name);
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    comptime var arg_types: [f_info.params.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const Args = std.meta.Tuple(&arg_types);
+    var args: Args = undefined;
+    {
+        inline for (arg_ptrs_info.fields, 0..) |field, i| {
+            const arg_ptr = @field(arg_ptrs, field.name);
+            args[i] = arg_ptr.*;
+        }
+    }
+
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+    const Payload = switch (return_type_info) {
+        .ErrorUnion => |error_union| error_union.payload,
+        else => Return,
+    };
+    const payload_prefix = switch (return_type_info) {
+        .ErrorUnion => "!",
+        else => "",
+    };
+
+    {
+        zgui.text("{s}(", .{f_name});
+        guiParams(arg_types[0..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
     }
 

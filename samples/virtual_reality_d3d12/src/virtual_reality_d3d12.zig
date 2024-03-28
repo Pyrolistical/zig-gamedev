@@ -347,6 +347,8 @@ const SystemWindow = struct {
     tracked_device_property_device_index_string: OpenVR.TrackedDeviceIndex = 0,
     tracked_device_property_string: OpenVR.System.TrackedDeviceProperty.String = .tracking_system_name,
 
+    prop_error_name_enum: OpenVR.System.TrackedPropertyErrorCode = .success,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -407,6 +409,10 @@ const SystemWindow = struct {
             try ui.allocGetter(allocator, "allocStringTrackedDeviceProperty", OpenVR.System, system, .{
                 .device_index = &self.tracked_device_property_device_index_string,
                 .property = &self.tracked_device_property_string,
+            }, null);
+
+            try ui.getter("getPropErrorNameFromEnum", OpenVR.System, system, .{
+                .property_error = &self.prop_error_name_enum,
             }, null);
 
             try ui.getter("getRuntimeVersion", OpenVR.System, system, .{}, null);
@@ -556,6 +562,9 @@ const OpenVRWindow = struct {
 
     next_window_focus: ?Windows = null,
 
+    symbol_static_error: OpenVR.InitErrorCode = .none,
+    english_static_error: OpenVR.InitErrorCode = .none,
+
     pub fn init() OpenVRWindow {
         return .{};
     }
@@ -650,6 +659,11 @@ const OpenVRWindow = struct {
                 if (self.init_error != OpenVR.InitError.None) {
                     zgui.text("OpenVR.init() error: {!}", .{self.init_error});
                 }
+            }
+            {
+                zgui.separatorText("InitErrorCode");
+                try ui.staticGetter("asSymbol", OpenVR.InitErrorCode, .{ .init_error = &self.symbol_static_error }, null);
+                try ui.staticGetter("asEnglishDescription", OpenVR.InitErrorCode, .{ .init_error = &self.english_static_error }, null);
             }
         }
         if (self.system) |system| {
