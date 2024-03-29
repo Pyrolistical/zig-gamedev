@@ -150,7 +150,7 @@ fn readOnlyFrameTiming(comptime fmt: ?[]const u8, args: anytype, frame_timing: O
     }
 }
 
-fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
+fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
     if (arg_types.len > 0) {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
@@ -209,7 +209,7 @@ fn guiParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Typ
     }
 }
 
-fn guiResult(comptime Return: type, result: Return) void {
+fn renderResult(comptime Return: type, result: Return) void {
     switch (@typeInfo(Return)) {
         .Pointer => |pointer| {
             if (pointer.size == .Slice and pointer.child != u8 and pointer.child != OpenVR.Compositor.FrameTiming) {
@@ -217,7 +217,7 @@ fn guiResult(comptime Return: type, result: Return) void {
                     for (result, 0..) |v, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
-                        guiResult(pointer.child, v);
+                        renderResult(pointer.child, v);
                         zgui.sameLine(.{});
                         zgui.text("[{}]", .{i});
                     }
@@ -229,7 +229,7 @@ fn guiResult(comptime Return: type, result: Return) void {
         },
         .Optional => |optional| {
             if (result) |v| {
-                guiResult(optional.child, v);
+                renderResult(optional.child, v);
             } else {
                 zgui.text("null", .{});
             }
@@ -336,7 +336,7 @@ fn guiResult(comptime Return: type, result: Return) void {
     }
 }
 
-pub fn getter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
+pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
@@ -377,7 +377,7 @@ pub fn getter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs
 
     {
         zgui.text("{s}(", .{f_name});
-        guiParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
+        renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
     }
 
@@ -401,11 +401,11 @@ pub fn getter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs
         else => @call(.auto, f, args),
     };
 
-    guiResult(Payload, result);
+    renderResult(Payload, result);
     zgui.newLine();
 }
 
-pub fn staticGetter(comptime f_name: [:0]const u8, comptime T: type, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
+pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
@@ -442,7 +442,7 @@ pub fn staticGetter(comptime f_name: [:0]const u8, comptime T: type, arg_ptrs: a
 
     {
         zgui.text("{s}(", .{f_name});
-        guiParams(arg_types[0..], arg_ptrs_info, arg_ptrs);
+        renderParams(arg_types[0..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
     }
 
@@ -466,11 +466,11 @@ pub fn staticGetter(comptime f_name: [:0]const u8, comptime T: type, arg_ptrs: a
         else => @call(.auto, f, args),
     };
 
-    guiResult(Payload, result);
+    renderResult(Payload, result);
     zgui.newLine();
 }
 
-pub fn allocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
+pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
@@ -512,7 +512,7 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, 
             zgui.sameLine(.{});
             zgui.text(",", .{});
         }
-        guiParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
+        renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
     }
 
@@ -547,11 +547,11 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime f_name: [:0]const u8, 
         else => @compileError(@typeName(Payload) ++ " not implemented"),
     };
 
-    guiResult(Payload, result);
+    renderResult(Payload, result);
     zgui.newLine();
 }
 
-pub fn setter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
+pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
@@ -600,7 +600,7 @@ pub fn setter(comptime f_name: [:0]const u8, comptime T: type, self: T, arg_ptrs
     }
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    guiParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
+    renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
     zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
 
     zgui.newLine();

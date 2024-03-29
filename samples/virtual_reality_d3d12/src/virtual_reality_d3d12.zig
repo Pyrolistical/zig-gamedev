@@ -353,69 +353,69 @@ const SystemWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("System", .{ .flags = .{ .always_auto_resize = true } })) {
-            try ui.getter("getRecommendedRenderTargetSize", OpenVR.System, system, .{}, "[width, height]");
-            try ui.getter("getProjectionMatrix", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getRecommendedRenderTargetSize", system, .{}, "[width, height]");
+            try ui.getter(OpenVR.System, "getProjectionMatrix", system, .{
                 .eye = &self.projection_matrix_eye,
                 .near = &self.projection_matrix_near,
                 .far = &self.projection_matrix_far,
             }, null);
-            try ui.getter("getProjectionRaw", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getProjectionRaw", system, .{
                 .eye = &self.projection_raw_eye,
             }, null);
-            try ui.getter("computeDistortion", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "computeDistortion", system, .{
                 .eye = &self.compute_distortion_eye,
                 .u = &self.compute_distortion_u,
                 .v = &self.compute_distortion_v,
             }, null);
 
-            try ui.getter("getBoolTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getBoolTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_bool,
                 .property = &self.tracked_device_property_bool,
             }, null);
-            try ui.getter("getF32TrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getF32TrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_f32,
                 .property = &self.tracked_device_property_f32,
             }, null);
-            try ui.getter("getI32TrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getI32TrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_i32,
                 .property = &self.tracked_device_property_i32,
             }, null);
-            try ui.getter("getU64TrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getU64TrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_u64,
                 .property = &self.tracked_device_property_u64,
             }, null);
-            try ui.getter("getMatrix34TrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getMatrix34TrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_matrix34,
                 .property = &self.tracked_device_property_matrix34,
             }, null);
 
-            try ui.allocGetter(allocator, "allocF32ArrayTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.allocGetter(allocator, OpenVR.System, "allocF32ArrayTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_f32_array,
                 .property = &self.tracked_device_property_f32_array,
             }, null);
-            try ui.allocGetter(allocator, "allocI32ArrayTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.allocGetter(allocator, OpenVR.System, "allocI32ArrayTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_i32_array,
                 .property = &self.tracked_device_property_i32_array,
             }, null);
-            try ui.allocGetter(allocator, "allocVector4ArrayTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.allocGetter(allocator, OpenVR.System, "allocVector4ArrayTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_vector4_array,
                 .property = &self.tracked_device_property_vector4_array,
             }, null);
-            try ui.allocGetter(allocator, "allocMatrix34ArrayTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.allocGetter(allocator, OpenVR.System, "allocMatrix34ArrayTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_matrix34_array,
                 .property = &self.tracked_device_property_matrix34_array,
             }, null);
 
-            try ui.allocGetter(allocator, "allocStringTrackedDeviceProperty", OpenVR.System, system, .{
+            try ui.allocGetter(allocator, OpenVR.System, "allocStringTrackedDeviceProperty", system, .{
                 .device_index = &self.tracked_device_property_device_index_string,
                 .property = &self.tracked_device_property_string,
             }, null);
 
-            try ui.getter("getPropErrorNameFromEnum", OpenVR.System, system, .{
+            try ui.getter(OpenVR.System, "getPropErrorNameFromEnum", system, .{
                 .property_error = &self.prop_error_name_enum,
             }, null);
 
-            try ui.getter("getRuntimeVersion", OpenVR.System, system, .{}, null);
+            try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
         }
     }
 };
@@ -435,19 +435,19 @@ const ChaperoneWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Chaperone", .{ .flags = .{ .always_auto_resize = true } })) {
-            try ui.getter("getCalibrationState", OpenVR.Chaperone, chaperone, .{}, null);
-            try ui.getter("getPlayAreaSize", OpenVR.Chaperone, chaperone, .{}, "{x: meters, z: meters}");
-            try ui.getter("getPlayAreaRect", OpenVR.Chaperone, chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
+            try ui.getter(OpenVR.Chaperone, "getCalibrationState", chaperone, .{}, null);
+            try ui.getter(OpenVR.Chaperone, "getPlayAreaSize", chaperone, .{}, "{x: meters, z: meters}");
+            try ui.getter(OpenVR.Chaperone, "getPlayAreaRect", chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
 
-            try ui.setter("reloadInfo", OpenVR.Chaperone, chaperone, .{}, null);
-            try ui.setter("setSceneColor", OpenVR.Chaperone, chaperone, .{ .scene_color = &self.scene_color }, null);
-            try ui.allocGetter(allocator, "allocBoundsColor", OpenVR.Chaperone, chaperone, .{
+            try ui.setter(OpenVR.Chaperone, "reloadInfo", chaperone, .{}, null);
+            try ui.setter(OpenVR.Chaperone, "setSceneColor", chaperone, .{ .scene_color = &self.scene_color }, null);
+            try ui.allocGetter(allocator, OpenVR.Chaperone, "allocBoundsColor", chaperone, .{
                 .collision_bounds_fade_distance = &self.collision_bounds_fade_distance,
                 .bound_colors_count = &self.bound_colors_count,
             }, null);
-            try ui.getter("areBoundsVisible", OpenVR.Chaperone, chaperone, .{}, null);
-            try ui.setter("forceBoundsVisible", OpenVR.Chaperone, chaperone, .{ .force = &self.force_bounds_visible }, null);
-            try ui.setter("resetZeroPose", OpenVR.Chaperone, chaperone, .{ .origin = &self.reset_zero_pose_origin }, null);
+            try ui.getter(OpenVR.Chaperone, "areBoundsVisible", chaperone, .{}, null);
+            try ui.setter(OpenVR.Chaperone, "forceBoundsVisible", chaperone, .{ .force = &self.force_bounds_visible }, null);
+            try ui.setter(OpenVR.Chaperone, "resetZeroPose", chaperone, .{ .origin = &self.reset_zero_pose_origin }, null);
         }
     }
 };
@@ -474,9 +474,9 @@ const CompositorWindow = struct {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
-            try ui.getter("getTrackingSpace", OpenVR.Compositor, compositor, .{}, null);
-            try ui.setter("setTrackingSpace", OpenVR.Compositor, compositor, .{ .origin = &self.tracking_space_origin }, null);
-            ui.allocGetter(allocator, "allocWaitPoses", OpenVR.Compositor, compositor, .{
+            try ui.getter(OpenVR.Compositor, "getTrackingSpace", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "setTrackingSpace", compositor, .{ .origin = &self.tracking_space_origin }, null);
+            ui.allocGetter(allocator, OpenVR.Compositor, "allocWaitPoses", compositor, .{
                 .render_poses_count = &self.wait_render_poses_count,
                 .game_poses_count = &self.wait_game_poses_count,
             }, null) catch |err| switch (err) {
@@ -485,55 +485,55 @@ const CompositorWindow = struct {
                 },
                 else => return err,
             };
-            try ui.allocGetter(allocator, "allocLastPoses", OpenVR.Compositor, compositor, .{
+            try ui.allocGetter(allocator, OpenVR.Compositor, "allocLastPoses", compositor, .{
                 .render_poses_count = &self.last_render_poses_count,
                 .game_poses_count = &self.last_game_poses_count,
             }, null);
-            try ui.getter("getLastPoseForTrackedDeviceIndex", OpenVR.Compositor, compositor, .{
+            try ui.getter(OpenVR.Compositor, "getLastPoseForTrackedDeviceIndex", compositor, .{
                 .device_index = &self.last_pose_device_index,
             }, null);
             {
                 zgui.separatorText("Submit");
             }
-            try ui.getter("getFrameTiming", OpenVR.Compositor, compositor, .{
+            try ui.getter(OpenVR.Compositor, "getFrameTiming", compositor, .{
                 .frames_ago = &self.frame_timing_frames_ago,
             }, "?FrameTiming");
-            try ui.allocGetter(allocator, "allocFrameTimings", OpenVR.Compositor, compositor, .{
+            try ui.allocGetter(allocator, OpenVR.Compositor, "allocFrameTimings", compositor, .{
                 .frames = &self.frame_timing_frames,
             }, "?FrameTiming");
-            try ui.getter("getFrameTimeRemaining", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("getCumulativeStats", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("getCurrentFadeColor", OpenVR.Compositor, compositor, .{ .background = &self.current_fade_color_background }, null);
-            try ui.setter("fadeToColor", OpenVR.Compositor, compositor, .{
+            try ui.getter(OpenVR.Compositor, "getFrameTimeRemaining", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "getCumulativeStats", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "getCurrentFadeColor", compositor, .{ .background = &self.current_fade_color_background }, null);
+            try ui.setter(OpenVR.Compositor, "fadeToColor", compositor, .{
                 .seconds = &self.fade_color_seconds,
                 .color = &self.fade_color,
                 .background = &self.fade_color_background,
             }, null);
-            try ui.getter("getCurrentGridAlpha", OpenVR.Compositor, compositor, .{}, null);
-            try ui.setter("fadeGrid", OpenVR.Compositor, compositor, .{
+            try ui.getter(OpenVR.Compositor, "getCurrentGridAlpha", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "fadeGrid", compositor, .{
                 .seconds = &self.fade_grid_seconds,
                 .background = &self.fade_grid_background,
             }, null);
 
-            try ui.setter("compositorBringToFront", OpenVR.Compositor, compositor, .{}, null);
-            try ui.setter("compositorGoToBack", OpenVR.Compositor, compositor, .{}, null);
-            try ui.setter("compositorQuit", OpenVR.Compositor, compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorBringToFront", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorGoToBack", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorQuit", compositor, .{}, null);
 
-            try ui.getter("isFullscreen", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("getCurrentSceneFocusProcess", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("getLastFrameRenderer", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("canRenderScene", OpenVR.Compositor, compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "isFullscreen", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "getCurrentSceneFocusProcess", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "getLastFrameRenderer", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "canRenderScene", compositor, .{}, null);
 
-            try ui.setter("compositorDumpImages", OpenVR.Compositor, compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorDumpImages", compositor, .{}, null);
 
-            try ui.getter("shouldAppRenderWithLowResources", OpenVR.Compositor, compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "shouldAppRenderWithLowResources", compositor, .{}, null);
 
-            try ui.setter("forceInterleavedReprojectionOn", OpenVR.Compositor, compositor, .{ .override = &self.force_interleaved_reprojection_override_on }, null);
-            try ui.setter("forceReconnectProcess", OpenVR.Compositor, compositor, .{}, null);
-            try ui.setter("suspendRendering", OpenVR.Compositor, compositor, .{ .suspend_rendering = &self.suspend_rendering }, null);
+            try ui.setter(OpenVR.Compositor, "forceInterleavedReprojectionOn", compositor, .{ .override = &self.force_interleaved_reprojection_override_on }, null);
+            try ui.setter(OpenVR.Compositor, "forceReconnectProcess", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "suspendRendering", compositor, .{ .suspend_rendering = &self.suspend_rendering }, null);
 
-            try ui.getter("isMotionSmoothingEnabled", OpenVR.Compositor, compositor, .{}, null);
-            try ui.getter("isMotionSmoothingSupported", OpenVR.Compositor, compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "isMotionSmoothingEnabled", compositor, .{}, null);
+            try ui.getter(OpenVR.Compositor, "isMotionSmoothingSupported", compositor, .{}, null);
         }
     }
 };
@@ -584,8 +584,8 @@ const OpenVRWindow = struct {
 
         defer zgui.end();
         if (zgui.begin("OpenVR", .{ .flags = .{ .always_auto_resize = true } })) {
-            try ui.staticGetter("isHmdPresent", OpenVR, .{}, null);
-            try ui.staticGetter("isRuntimeInstalled", OpenVR, .{}, null);
+            try ui.staticGetter(OpenVR, "isHmdPresent", .{}, null);
+            try ui.staticGetter(OpenVR, "isRuntimeInstalled", .{}, null);
             if (self.openvr) |openvr| {
                 if (zgui.button("deinit()", .{})) {
                     openvr.deinit();
@@ -661,8 +661,8 @@ const OpenVRWindow = struct {
             }
             {
                 zgui.separatorText("InitErrorCode");
-                try ui.staticGetter("asSymbol", OpenVR.InitErrorCode, .{ .init_error = &self.symbol_static_error }, null);
-                try ui.staticGetter("asEnglishDescription", OpenVR.InitErrorCode, .{ .init_error = &self.english_static_error }, null);
+                try ui.staticGetter(OpenVR.InitErrorCode, "asSymbol", .{ .init_error = &self.symbol_static_error }, null);
+                try ui.staticGetter(OpenVR.InitErrorCode, "asEnglishDescription", .{ .init_error = &self.english_static_error }, null);
             }
         }
         if (self.system) |system| {
