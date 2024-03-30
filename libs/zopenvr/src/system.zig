@@ -1336,7 +1336,7 @@ pub fn getHiddenAreaMesh(self: Self, eye: common.Eye, mesh_type: HiddenAreaMeshT
         mesh.vertex_data[0..mesh.triangle_count];
 }
 
-pub fn triggerHapticPulse(self: Self, device_index: common.TrackedDeviceIndex, axis_id: u32, duration_microseconds: c_ushort) void {
+pub fn triggerHapticPulse(self: Self, device_index: common.TrackedDeviceIndex, axis_id: u32, duration_microseconds: u16) void {
     self.function_table.TriggerHapticPulse(device_index, axis_id, duration_microseconds);
 }
 

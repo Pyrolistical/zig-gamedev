@@ -358,6 +358,10 @@ const SystemWindow = struct {
     hidden_area_mesh_eye: OpenVR.Eye = .left,
     hidden_area_mesh_type: OpenVR.System.HiddenAreaMeshType = .standard,
 
+    trigger_haptic_pulse_device_index: OpenVR.TrackedDeviceIndex = 0,
+    trigger_haptic_pulse_axis_id: u32 = 0,
+    trigger_haptic_pulse_duration_microseconds: u16 = 0,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -435,6 +439,12 @@ const SystemWindow = struct {
             try ui.getter(OpenVR.System, "getHiddenAreaMesh", system, .{
                 .eye = &self.hidden_area_mesh_eye,
                 .mesh_type = &self.hidden_area_mesh_type,
+            }, null);
+
+            try ui.setter(OpenVR.System, "triggerHapticPulse", system, .{
+                .device_index = &self.trigger_haptic_pulse_device_index,
+                .axis_id = &self.trigger_haptic_pulse_axis_id,
+                .duration_microseconds = &self.trigger_haptic_pulse_duration_microseconds,
             }, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);

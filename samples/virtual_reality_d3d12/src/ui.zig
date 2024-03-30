@@ -579,6 +579,12 @@ fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.
                 bool => {
                     _ = zgui.checkbox(arg_name, .{ .v = arg_ptr });
                 },
+                u16 => {
+                    _ = zgui.inputScalar(arg_name, u16, .{
+                        .v = arg_ptr,
+                        .step = 1,
+                    });
+                },
                 u32 => {
                     _ = zgui.inputScalar(arg_name, u32, .{
                         .v = arg_ptr,
