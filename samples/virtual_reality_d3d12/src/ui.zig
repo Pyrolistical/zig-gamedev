@@ -845,7 +845,7 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     zgui.newLine();
 }
 
-pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, comptime Payload: type, result_ptr: *Payload, return_doc: ?[:0]const u8) !void {
+pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, comptime Payload: type, result_ptr: *?Payload, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
@@ -874,16 +874,11 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
     }
 
     const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
 
     if (Return != Payload) {
         @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(Return));
     }
 
-    const payload_prefix = switch (return_type_info) {
-        .ErrorUnion => "!",
-        else => "",
-    };
     if (zgui.button(f_name, .{})) {
         result_ptr.* = @call(.auto, f, args);
     }
@@ -891,9 +886,78 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
     zgui.sameLine(.{});
     zgui.text("(", .{});
     renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+    zgui.text(") {s}", .{return_doc orelse @typeName(Payload)});
 
-    renderResult(Payload, result_ptr.*);
+    if (result_ptr.*) |result| {
+        renderResult(Payload, result);
+    }
+    zgui.newLine();
+}
+
+pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, comptime Payload: type, result_ptr: *?Payload, return_doc: ?[:0]const u8) !void {
+    zgui.pushStrId(f_name);
+    defer zgui.popId();
+
+    const f = @field(T, f_name);
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    comptime var arg_types: [f_info.params.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const Args = std.meta.Tuple(&arg_types);
+    var args: Args = undefined;
+    {
+        args[0] = self;
+        args[1] = allocator;
+
+        if (arg_types.len > 2) {
+            inline for (arg_ptrs_info.fields, 0..) |field, i| {
+                const arg_ptr = @field(arg_ptrs, field.name);
+                args[i + 2] = arg_ptr.*;
+            }
+        }
+    }
+
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+    const ActualPayload = return_type_info.ErrorUnion.payload;
+
+    if (ActualPayload != Payload) {
+        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(ActualPayload));
+    }
+
+    if (zgui.button(f_name, .{})) {
+        if (result_ptr.*) |result| {
+            switch (Payload) {
+                OpenVR.Chaperone.BoundsColor,
+                OpenVR.Compositor.Poses,
+                => result.deinit(allocator),
+                [:0]u8,
+                []f32,
+                []i32,
+                []OpenVR.Vector4,
+                []OpenVR.Matrix34,
+                []OpenVR.Compositor.FrameTiming,
+                => allocator.free(result),
+                else => @compileError(@typeName(Payload) ++ " not implemented"),
+            }
+        }
+        result_ptr.* = try @call(.auto, f, args);
+    }
+
+    zgui.sameLine(.{});
+    zgui.text("(", .{});
+    renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
+
+    if (result_ptr.*) |result| {
+        renderResult(Payload, result);
+    }
     zgui.newLine();
 }
 

@@ -349,7 +349,7 @@ const SystemWindow = struct {
 
     prop_error_name_enum: OpenVR.System.TrackedPropertyErrorCode = .success,
 
-    next_event: ?OpenVR.System.Event = null,
+    next_event: ??OpenVR.System.Event = null,
 
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
@@ -459,6 +459,8 @@ const ChaperoneWindow = struct {
 const CompositorWindow = struct {
     wait_render_poses_count: usize = 1,
     wait_game_poses_count: usize = 1,
+    waited_poses: ?OpenVR.Compositor.Poses = null,
+
     last_render_poses_count: usize = 1,
     last_game_poses_count: usize = 1,
     last_pose_device_index: u32 = 0,
@@ -474,18 +476,36 @@ const CompositorWindow = struct {
     force_interleaved_reprojection_override_on: bool = false,
     suspend_rendering: bool = false,
 
+    pub fn deinit(self: CompositorWindow, allocator: std.mem.Allocator) void {
+        if (self.waited_poses) |poses| {
+            poses.deinit(allocator);
+        }
+    }
+
     fn show(self: *CompositorWindow, compositor: OpenVR.Compositor, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
             try ui.getter(OpenVR.Compositor, "getTrackingSpace", compositor, .{}, null);
             try ui.setter(OpenVR.Compositor, "setTrackingSpace", compositor, .{ .origin = &self.tracking_space_origin }, null);
-            ui.allocGetter(allocator, OpenVR.Compositor, "allocWaitPoses", compositor, .{
-                .render_poses_count = &self.wait_render_poses_count,
-                .game_poses_count = &self.wait_game_poses_count,
-            }, null) catch |err| switch (err) {
+            ui.allocPersistedGetter(
+                allocator,
+                OpenVR.Compositor,
+                "allocWaitPoses",
+                compositor,
+                .{
+                    .render_poses_count = &self.wait_render_poses_count,
+                    .game_poses_count = &self.wait_game_poses_count,
+                },
+                OpenVR.Compositor.Poses,
+                &self.waited_poses,
+                null,
+            ) catch |err| switch (err) {
                 error.DoNotHaveFocus => {
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
                     zgui.text("{!}", .{err});
+                    zgui.newLine();
                 },
                 else => return err,
             };
@@ -573,10 +593,11 @@ const OpenVRWindow = struct {
         return .{};
     }
 
-    pub fn deinit(self: *OpenVRWindow) void {
+    pub fn deinit(self: *OpenVRWindow, allocator: std.mem.Allocator) void {
         if (self.openvr) |openvr| {
             openvr.deinit();
         }
+        self.compositor_window.deinit(allocator);
         self.openvr = null;
         self.system = null;
         self.chaperone = null;
@@ -715,7 +736,7 @@ pub fn main() !void {
     defer display_window.deinit(allocator);
 
     var open_vr_window = OpenVRWindow.init();
-    defer open_vr_window.deinit();
+    defer open_vr_window.deinit(allocator);
 
     var frame_timer = try std.time.Timer.start();
 
