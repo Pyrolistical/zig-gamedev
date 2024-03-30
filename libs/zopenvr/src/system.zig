@@ -618,7 +618,7 @@ pub const TrackedPropertyErrorCode = enum(i32) {
 pub const PropertyTypeTag = u32;
 
 pub const Event = extern struct {
-    event_type: u32,
+    event_type: EventType,
     tracked_device_index: common.TrackedDeviceIndex,
     event_age_seconds: f32,
     data: EventData,
@@ -654,7 +654,7 @@ pub const EventProcess = extern struct {
     forced: bool,
     connection_lost: bool,
 };
-pub const EventNotification = extern struct {
+pub const EventNotification = extern struct { // which EventType?
     user_value: u64,
     notification_id: u32,
 };
@@ -664,7 +664,7 @@ pub const EventOverlay = extern struct {
     memory_block_id: u64,
     cursor_index: u32,
 };
-pub const EventStatus = extern struct {
+pub const EventStatus = extern struct { // which EventType?
     status_state: u32,
 };
 pub const EventKeyboard = extern struct {
@@ -695,14 +695,14 @@ pub const EventTouchPadMove = extern struct {
 pub const EventSeatedZeroPoseReset = extern struct {
     reset_by_system_menu: bool,
 };
-pub const EventScreenshot = extern struct {
+pub const EventScreenshot = extern struct { // which EventType?
     handle: u32,
     type: u32,
 };
 pub const EventScreenshotProgress = extern struct {
     progress: f32,
 };
-pub const EventApplicationLaunch = extern struct {
+pub const EventApplicationLaunch = extern struct { // which EventType?
     pid: u32,
     args_handle: u32,
 };
@@ -711,7 +711,7 @@ pub const EventEditingCameraSurface = extern struct {
     overlay_handle: u64,
     visual_mode: u32,
 };
-pub const EventMessageOverlay = extern struct {
+pub const EventMessageOverlay = extern struct { // which EventType?
     response: u32,
 };
 pub const PropertyContainerHandle = u64;
@@ -727,7 +727,7 @@ pub const EventHapticVibration = extern struct {
     amplitude: f32,
 };
 pub const WebConsoleHandle = u64;
-pub const EventWebConsole = extern struct {
+pub const EventWebConsole = extern struct { //  which EventType?
     web_console_handle: WebConsoleHandle,
 };
 pub const EventInputBindingLoad = extern struct {
@@ -786,6 +786,7 @@ pub const EventAudioVolumeControl = extern struct {
 pub const EventAudioMuteControl = extern struct {
     mute: bool,
 };
+
 pub const EventData = extern union {
     reserved: EventReserved,
     controller: EventController,

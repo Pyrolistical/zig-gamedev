@@ -217,11 +217,15 @@ fn renderResult(comptime Return: type, result: Return) void {
                     for (result, 0..) |v, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
                         renderResult(pointer.child, v);
                         zgui.sameLine(.{});
                         zgui.text("[{}]", .{i});
                     }
                 } else {
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
                     zgui.text("(empty)", .{});
                 }
                 return;
@@ -231,12 +235,15 @@ fn renderResult(comptime Return: type, result: Return) void {
             if (result) |v| {
                 renderResult(optional.child, v);
             } else {
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
                 zgui.text("null", .{});
             }
             return;
         },
         else => {},
     }
+
     zgui.indent(.{ .indent_w = 30 });
     defer zgui.unindent(.{ .indent_w = 30 });
     switch (Return) {
@@ -332,6 +339,439 @@ fn renderResult(comptime Return: type, result: Return) void {
             readOnlyFloat2("green", result.green);
             readOnlyFloat2("blue", result.blue);
         },
+        OpenVR.System.Event => {
+            readOnlyText("event_type", @tagName(result.event_type));
+            readOnlyScalar("tracked_device_index", u32, result.tracked_device_index);
+            readOnlyFloat("event_age_seconds", result.event_age_seconds);
+
+            switch (result.event_type) {
+                .none,
+                .tracked_device_activated,
+                .tracked_device_deactivated,
+                .tracked_device_updated,
+                .tracked_device_user_interaction_started,
+                .tracked_device_user_interaction_ended,
+                .enter_standby_mode,
+                .leave_standby_mode,
+                .tracked_device_role_changed,
+                .watchdog_wake_up_requested,
+                .lens_distortion_changed,
+                .wireless_disconnect,
+                .wireless_reconnect,
+                .reserved_01,
+                .reserved_02,
+                => {},
+                .ipd_changed => {}, // should be EventIpd?
+                // .ipd_changed => {
+                //     const data = result.data.ipd;
+                //     zgui.text("data.ipd", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyFloat("ipd_meters", data.ipd_meters);
+                // },
+                .property_changed => {}, // should be EventProperty?
+                // .property_changed=>{
+                //     const data = result.data.property;
+                //     zgui.text("data.property", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyScalar("container", u64, data.container);
+                //     readOnlyText("prop", @tagName(data.prop));
+                // },
+                .button_press,
+                .button_unpress,
+                .button_touch,
+                .button_untouch,
+                => {
+                    const data = result.data.controller;
+                    zgui.text("data.controller", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("button", u32, data.button);
+                },
+                .modal_cancel,
+                .focus_enter,
+                .focus_leave,
+                .overlay_focus_changed,
+                .dashboard_requested,
+                .reset_dashboard,
+                .image_loaded,
+                => {
+                    const data = result.data.overlay;
+                    zgui.text("data.overlay", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("overlay_handle", u64, data.overlay_handle);
+                    readOnlyScalar("device_path", u64, data.device_path);
+                    readOnlyScalar("memory_block_id", u64, data.memory_block_id);
+                    readOnlyScalar("cursor_index", u32, data.cursor_index);
+                },
+                .mouse_move,
+                .mouse_button_down,
+                .mouse_button_up,
+                .touch_pad_move, // should be EventTouchPadMove?
+                .lock_mouse_position,
+                .unlock_mouse_position,
+                => {
+                    const data = result.data.mouse;
+                    zgui.text("data.mouse", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyFloat("x", data.x);
+                    readOnlyFloat("y", data.y);
+                    readOnlyScalar("button", u32, data.button);
+                    readOnlyScalar("cursor_index", u32, data.cursor_index);
+                },
+                // .touch_pad_move => {
+                //     const data = result.data.touch_pad_move;
+                //     zgui.text("data.touch_pad_move", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyCheckbox("finder_down", data.finder_down);
+                //     readOnlyFloat("seconds_finder_down", data.seconds_finder_down);
+                //     readOnlyFloat("x_first", data.x_first);
+                //     readOnlyFloat("y_first", data.y_first);
+                //     readOnlyFloat("x_raw", data.x_raw);
+                //     readOnlyFloat("y_raw", data.y_raw);
+                // },
+                .scroll_discrete,
+                .scroll_smooth,
+                => {
+                    const data = result.data.scroll;
+                    zgui.text("data.scroll", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyFloat("x_delta", data.x_delta);
+                    readOnlyFloat("y_delta", data.y_delta);
+                    readOnlyScalar("unused", u32, data.unused);
+                    readOnlyFloat("viewport_scale", data.viewport_scale);
+                    readOnlyScalar("cursor_index", u32, data.cursor_index);
+                },
+                .reload_overlays,
+                .input_focus_captured, // deprecated
+                .input_focus_released, // deprecated
+                .scene_application_changed,
+                .input_focus_changed,
+                .scene_application_using_wrong_graphics_adapter,
+                .action_binding_reloaded,
+                .scene_app_pipe_disconnected,
+                .quit,
+                .process_quit,
+                .quit_acknowledged,
+                .monitor_show_headset_view,
+                .monitor_hide_headset_view,
+                => {
+                    const data = result.data.process;
+                    zgui.text("data.process", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("pid", u32, data.pid);
+                    readOnlyScalar("old_pid", u32, data.old_pid);
+                    readOnlyCheckbox("forced", data.forced);
+                    readOnlyCheckbox("connection_lost", data.connection_lost);
+                },
+                .hide_render_models,
+                .show_render_models,
+                .scene_application_state_changed, // see OpenVR.Applications.getSceneApplicationState()
+                => {},
+                .console_opened,
+                .console_closed,
+                .overlay_shown, // OpenVR.Overlay.isOverlayVisible() is true
+                .overlay_hidden, // OpenVR.Overlay.isOverlayVisible() is false
+                .dashboard_activated,
+                .dashboard_deactivated,
+                .show_keyboard,
+                .hide_keyboard,
+                .overlay_gamepad_focus_gained,
+                .overlay_gamepad_focus_lost,
+                .overlay_shared_texture_changed,
+                .screenshot_triggered,
+                .image_failed,
+                .dashboard_overlay_created,
+                .switch_gamepad_focus,
+                .request_screenshot,
+                .screenshot_taken,
+                .screenshot_failed,
+                .submit_screenshot_to_dashboard,
+                .primary_dashboard_device_changed,
+                .room_view_shown,
+                .room_view_hidden,
+                => {},
+                .screenshot_progress_to_dashboard => {}, // should be EventScreenshotProgress?
+                // .screenshot_progress_to_dashboard=> {
+                //     const data = result.data.screenshot_progress;
+                //     zgui.text("data.screenshot_progress", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyFloat("progress", data.progress);
+                // },
+                .show_ui => {
+                    const data = result.data.show_ui;
+                    zgui.text("data.show_ui", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyText("type", @tagName(data.type));
+                },
+                .show_dev_tools => {
+                    const data = result.data.show_dev_tools;
+                    zgui.text("data.show_dev_tools", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyInt("browser_identifier", data.browser_identifier);
+                },
+                .desktop_view_updating,
+                .desktop_view_ready,
+                .start_dashboard,
+                .elevate_prism,
+                .overlay_closed,
+                .dashboard_thumb_changed,
+                .desktop_might_be_visible,
+                .desktop_might_be_hidden,
+                .notification_shown,
+                .notification_hidden,
+                .notification_begin_interaction,
+                .notification_destroyed,
+                => {},
+                .driver_requested_quit,
+                .restart_requested,
+                .invalidate_swap_texture_sets,
+                .chaperone_data_has_changed,
+                .chaperone_temp_data_has_changed,
+                .chaperone_settings_have_changed,
+                .chaperone_flush_cache,
+                .chaperone_room_setup_starting,
+                .chaperone_room_setup_finished,
+                .standing_zero_pose_reset,
+                .audio_settings_have_changed,
+                .background_setting_has_changed,
+                .camera_settings_have_changed,
+                .reprojection_setting_has_changed,
+                .model_skin_settings_have_changed,
+                .environment_settings_have_changed,
+                .power_settings_have_changed,
+                .enable_home_app_settings_have_changed,
+                .steam_vr_section_setting_changed,
+                .lighthouse_section_setting_changed,
+                .null_section_setting_changed,
+                .user_interface_section_setting_changed,
+                .notifications_section_setting_changed,
+                .keyboard_section_setting_changed,
+                .perf_section_setting_changed,
+                .dashboard_section_setting_changed,
+                .web_interface_section_setting_changed,
+                .trackers_section_setting_changed,
+                .last_known_section_setting_changed,
+                .dismissed_warnings_section_setting_changed,
+                .gpu_speed_section_setting_changed,
+                .windows_mr_section_setting_changed,
+                .other_section_setting_changed,
+                .any_driver_settings_changed,
+                .status_update,
+                .web_interface_install_driver_completed,
+                .mc_image_updated,
+                .firmware_update_started,
+                .firmware_update_finished,
+                .keyboard_closed, // deprecated
+                .keyboard_done,
+                .keyboard_opened_global,
+                .keyboard_closed_global,
+                .application_list_updated,
+                .application_mime_type_load,
+                .process_connected,
+                .process_disconnected,
+                .compositor_chaperone_bounds_shown,
+                .compositor_chaperone_bounds_hidden,
+                .compositor_display_disconnected,
+                .compositor_display_reconnected,
+                => {},
+                .chaperone_universe_has_changed => {}, // should be EventChaperone?
+                // .chaperone_universe_has_changed=> {
+                //     const data = result.data.chaperone;
+                //     zgui.text("data.chaperone", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyScalar("previous_universe", u64, data.previous_universe);
+                //     readOnlyScalar("current_universe", u64, data.current_universe);
+                // },
+                .keyboard_char_input => {}, // should be EventKeyboard?
+                // .keyboard_char_input => {
+                //     const data = result.data.keyboard;
+                //     zgui.text("data.keyboard", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyScalar("new_input[0]", u8, data.new_input[0]);
+                //     readOnlyScalar("new_input[1]", u8, data.new_input[1]);
+                //     readOnlyScalar("new_input[2]", u8, data.new_input[2]);
+                //     readOnlyScalar("new_input[3]", u8, data.new_input[3]);
+                //     readOnlyScalar("new_input[4]", u8, data.new_input[4]);
+                //     readOnlyScalar("new_input[5]", u8, data.new_input[5]);
+                //     readOnlyScalar("new_input[6]", u8, data.new_input[6]);
+                //     readOnlyScalar("new_input[7]", u8, data.new_input[7]);
+                //     readOnlyScalar("user_value", u64, data.user_value);
+                //     readOnlyScalar("overlay_handle", u64, data.overlay_handle);
+                // },
+                .seated_zero_pose_reset => {}, // should be EventSeatedZeroPoseReset?
+                // .seated_zero_pose_reset => {
+                //     const data = result.data.seated_zero_pose_reset;
+                //     zgui.text("data.seated_zero_pose_reset", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyCheckbox("reset_by_system_menu", data.reset_by_system_menu);
+                // },
+                .compositor_hdcp_error => {
+                    const data = result.data.hdcp_error;
+                    zgui.text("data.hdcp_error", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyText("code", @tagName(data.code));
+                },
+                .compositor_application_not_responding,
+                .compositor_application_resumed,
+                .compositor_out_of_video_memory,
+                .compositor_display_mode_not_supported,
+                .compositor_stage_override_ready,
+                .compositor_request_disconnect_reconnect,
+                .tracked_camera_start_video_stream,
+                .tracked_camera_stop_video_stream,
+                .tracked_camera_pause_video_stream,
+                .tracked_camera_resume_video_stream,
+                .performance_test_enable_capture,
+                .performance_test_disable_capture,
+                .message_overlay_closed,
+                .message_overlay_close_requested,
+                => {},
+                .performance_test_fidelity_level => {}, // should be EventPerformanceTest?
+                // .performance_test_fidelity_level => {
+                //     const data = result.data.performance_test;
+                //     zgui.text("data.performance_test", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyScalar("fidelity_level", u32, data.fidelity_level);
+                // },
+                .tracked_camera_editing_surface => {}, // should be EventEditingCameraSurface?
+                // .tracked_camera_editing_surface => {
+                //     const data = result.data.camera_surface;
+                //     zgui.text("data.camera_surface", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyScalar("overlay_handle", u64, data.overlay_handle);
+                //     readOnlyScalar("visual_mode", u32, data.visual_mode);
+                // },
+                .input_haptic_vibration => {
+                    const data = result.data.haptic_vibration;
+                    zgui.text("data.haptic_vibration", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("container_handle", u64, data.container_handle);
+                    readOnlyScalar("component_handle", u64, data.component_handle);
+                    readOnlyFloat("duration_seconds", data.duration_seconds);
+                    readOnlyFloat("frequency", data.frequency);
+                    readOnlyFloat("amplitude", data.amplitude);
+                },
+                .input_binding_load_failed,
+                .input_binding_load_successful,
+                => {
+                    const data = result.data.input_binding;
+                    zgui.text("data.input_binding", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("app_container", u64, data.app_container);
+                    readOnlyScalar("path_message", u64, data.path_message);
+                    readOnlyScalar("path_url", u64, data.path_url);
+                    readOnlyScalar("path_controller_type", u64, data.path_controller_type);
+                },
+                .input_action_manifest_reloaded => {},
+                .input_action_manifest_load_failed => {
+                    const data = result.data.action_manifest;
+                    zgui.text("data.action_manifest", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("path_app_key", u64, data.path_app_key);
+                    readOnlyScalar("path_message", u64, data.path_message);
+                    readOnlyScalar("path_message_param", u64, data.path_message_param);
+                    readOnlyScalar("path_manifest_path", u64, data.path_manifest_path);
+                },
+                .input_progress_update => {
+                    const data = result.data.progress_update;
+                    zgui.text("data.progress_update", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("application_property_container", u64, data.application_property_container);
+                    readOnlyScalar("path_device", u64, data.path_device);
+                    readOnlyScalar("path_input_source", u64, data.path_input_source);
+                    readOnlyScalar("path_progress_action", u64, data.path_progress_action);
+                    readOnlyScalar("path_icon", u64, data.path_icon);
+                    readOnlyFloat("progress", data.progress);
+                },
+                .input_tracker_activated,
+                .input_bindings_updated,
+                .input_binding_subscription_changed,
+                => {},
+                .spatial_anchors_pose_updated,
+                .spatial_anchors_descriptor_updated,
+                .spatial_anchors_request_pose_update,
+                .spatial_anchors_request_descriptor_update,
+                => {
+                    const data = result.data.spatial_anchor;
+                    zgui.text("data.spatial_anchor", .{});
+                    zgui.indent(.{ .indent_w = 30 });
+                    defer zgui.unindent(.{ .indent_w = 30 });
+
+                    readOnlyScalar("handle", u32, data.handle);
+                },
+                .system_report_started => {},
+                .audio_set_speakers_volume,
+                .audio_set_microphone_volume,
+                => {}, // should be EventAudioVolumeControl?
+                // .audio_set_speakers_volume,
+                // .audio_set_microphone_volume,
+                // => {
+                //     const data = result.data.audio_volume_control;
+                //     zgui.text("data.audio_volume_control", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyFloat("volume_level", data.volume_level);
+                // },
+                .audio_set_speakers_mute,
+                .audio_set_microphone_mute,
+                => {}, // should be EventAudioMuteControl?
+                // .audio_set_speakers_mute,
+                // .audio_set_microphone_mute,
+                // => {
+                //     const data = result.data.audio_mute_control;
+                //     zgui.text("data.audio_mute_control", .{});
+                //     zgui.indent(.{ .indent_w = 30 });
+                //     defer zgui.unindent(.{ .indent_w = 30 });
+
+                //     readOnlyCheckbox("mute", data.mute);
+                // },
+                .vendor_specific_reserved_start,
+                .vendor_specific_reserved_end,
+                => {},
+            }
+        },
         else => @compileError(@typeName(Return) ++ " not implemented"),
     }
 }
@@ -370,12 +810,12 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         .ErrorUnion => |error_union| error_union.payload,
         else => Return,
     };
-    const payload_prefix = switch (return_type_info) {
-        .ErrorUnion => "!",
-        else => "",
-    };
 
     {
+        const payload_prefix = switch (return_type_info) {
+            .ErrorUnion => "!",
+            else => "",
+        };
         zgui.text("{s}(", .{f_name});
         renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
@@ -402,6 +842,58 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     };
 
     renderResult(Payload, result);
+    zgui.newLine();
+}
+
+pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, comptime Payload: type, result_ptr: *Payload, return_doc: ?[:0]const u8) !void {
+    zgui.pushStrId(f_name);
+    defer zgui.popId();
+
+    const f = @field(T, f_name);
+    const F = @TypeOf(f);
+    const f_info = @typeInfo(F).Fn;
+    comptime var arg_types: [f_info.params.len]type = undefined;
+    inline for (f_info.params, 0..) |param, i| {
+        arg_types[i] = param.type.?;
+    }
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const Args = std.meta.Tuple(&arg_types);
+    var args: Args = undefined;
+    {
+        args[0] = self;
+
+        if (arg_types.len > 1) {
+            inline for (arg_ptrs_info.fields, 0..) |field, i| {
+                const arg_ptr = @field(arg_ptrs, field.name);
+                args[i + 1] = arg_ptr.*;
+            }
+        }
+    }
+
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+
+    if (Return != Payload) {
+        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(Return));
+    }
+
+    const payload_prefix = switch (return_type_info) {
+        .ErrorUnion => "!",
+        else => "",
+    };
+    if (zgui.button(f_name, .{})) {
+        result_ptr.* = @call(.auto, f, args);
+    }
+
+    zgui.sameLine(.{});
+    zgui.text("(", .{});
+    renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+
+    renderResult(Payload, result_ptr.*);
     zgui.newLine();
 }
 
@@ -435,12 +927,12 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
         .ErrorUnion => |error_union| error_union.payload,
         else => Return,
     };
-    const payload_prefix = switch (return_type_info) {
-        .ErrorUnion => "!",
-        else => "",
-    };
 
     {
+        const payload_prefix = switch (return_type_info) {
+            .ErrorUnion => "!",
+            else => "",
+        };
         zgui.text("{s}(", .{f_name});
         renderParams(arg_types[0..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
@@ -532,7 +1024,6 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
         },
         else => try @call(.auto, f, args),
     };
-
     defer switch (Payload) {
         OpenVR.Chaperone.BoundsColor,
         OpenVR.Compositor.Poses,
@@ -578,30 +1069,18 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         }
     }
 
-    const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
-    const Payload = switch (return_type_info) {
-        .ErrorUnion => |error_union| error_union.payload,
-        else => Return,
-    };
+    const Payload = f_info.return_type.?;
     if (@typeInfo(Payload) != .Void) {
-        @compileError(@typeInfo(Payload) ++ " must be void");
+        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeInfo(Payload));
     }
-    const payload_prefix = switch (return_type_info) {
-        .ErrorUnion => "!",
-        else => "",
-    };
 
     if (zgui.button(f_name, .{})) {
-        switch (return_type_info) {
-            .ErrorUnion => try @call(.auto, f, args),
-            else => @call(.auto, f, args),
-        }
+        @call(.auto, f, args);
     }
     zgui.sameLine(.{});
     zgui.text("(", .{});
     renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+    zgui.text(") {s}", .{return_doc orelse @typeName(Payload)});
 
     zgui.newLine();
 }

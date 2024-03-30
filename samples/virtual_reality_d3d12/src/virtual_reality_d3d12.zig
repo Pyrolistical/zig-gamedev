@@ -349,6 +349,8 @@ const SystemWindow = struct {
 
     prop_error_name_enum: OpenVR.System.TrackedPropertyErrorCode = .success,
 
+    next_event: ?OpenVR.System.Event = null,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -414,6 +416,8 @@ const SystemWindow = struct {
             try ui.getter(OpenVR.System, "getPropErrorNameFromEnum", system, .{
                 .property_error = &self.prop_error_name_enum,
             }, null);
+
+            try ui.persistedGetter(OpenVR.System, "pollNextEvent", system, .{}, ?OpenVR.System.Event, &self.next_event, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
         }
