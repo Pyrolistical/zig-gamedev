@@ -600,6 +600,8 @@ fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.
                 OpenVR.InitErrorCode,
                 OpenVR.TrackingUniverseOrigin,
                 OpenVR.Eye,
+                OpenVR.System.EventType,
+                OpenVR.System.HiddenAreaMeshType,
                 OpenVR.System.TrackedDeviceProperty.Bool,
                 OpenVR.System.TrackedDeviceProperty.F32,
                 OpenVR.System.TrackedDeviceProperty.I32,
@@ -632,8 +634,6 @@ fn renderResult(comptime Return: type, result: Return) void {
                     for (result, 0..) |v, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
-                        zgui.indent(.{ .indent_w = 30 });
-                        defer zgui.unindent(.{ .indent_w = 30 });
                         renderResult(pointer.child, v);
                         zgui.sameLine(.{});
                         zgui.text("[{}]", .{i});
@@ -767,6 +767,7 @@ fn renderResult(comptime Return: type, result: Return) void {
             }
             readOnlyColor4("camera_color", @bitCast(result.camera_color));
         },
+        OpenVR.System.Vector2 => readOnlyFloat2("##", result.v),
         OpenVR.Vector4 => readOnlyFloat4("##", result.v),
         OpenVR.Matrix34 => readOnlyMatrix34(result),
         OpenVR.Matrix44 => readOnlyMatrix44(result),
