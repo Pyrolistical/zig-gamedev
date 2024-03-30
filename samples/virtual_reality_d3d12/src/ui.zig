@@ -565,6 +565,24 @@ fn readOnlyEvent(event: OpenVR.System.Event) void {
     }
 }
 
+fn readOnlyControllerState(controller_state: OpenVR.System.ControllerState) void {
+    readOnlyScalar("packet_num", u32, controller_state.packet_num);
+    readOnlyScalar("button_pressed", u64, controller_state.button_pressed);
+    readOnlyScalar("button_touched", u64, controller_state.button_touched);
+    zgui.text("axis", .{});
+    zgui.indent(.{ .indent_w = 30 });
+    defer zgui.unindent(.{ .indent_w = 30 });
+    for (controller_state.axis, 0..) |axis, i| {
+        zgui.pushIntId(@intCast(i));
+        defer zgui.popId();
+        zgui.text("[{}]", .{i});
+        zgui.indent(.{ .indent_w = 30 });
+        defer zgui.unindent(.{ .indent_w = 30 });
+        readOnlyFloat("x", axis.x);
+        readOnlyFloat("y", axis.y);
+    }
+}
+
 fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
     if (arg_types.len > 0) {
         zgui.indent(.{ .indent_w = 30 });
@@ -796,6 +814,23 @@ fn renderResult(comptime Return: type, result: Return) void {
                 defer zgui.unindent(.{ .indent_w = 30 });
 
                 readOnlyEvent(result.event);
+            }
+            {
+                zgui.text("pose", .{});
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
+
+                readOnlyTrackedDevicePose(result.pose);
+            }
+        },
+        OpenVR.System.ControllerState => readOnlyControllerState(result),
+        OpenVR.System.ControllerStateWithPose => {
+            {
+                zgui.text("controller_state", .{});
+                zgui.indent(.{ .indent_w = 30 });
+                defer zgui.unindent(.{ .indent_w = 30 });
+
+                readOnlyControllerState(result.controller_state);
             }
             {
                 zgui.text("pose", .{});

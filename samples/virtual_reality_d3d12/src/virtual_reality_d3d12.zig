@@ -362,6 +362,12 @@ const SystemWindow = struct {
     trigger_haptic_pulse_axis_id: u32 = 0,
     trigger_haptic_pulse_duration_microseconds: u16 = 0,
 
+    controller_state_device_index: OpenVR.TrackedDeviceIndex = 0,
+
+    controller_state_with_pose_origin: OpenVR.TrackingUniverseOrigin = .seated,
+    corigin: OpenVR.TrackedDeviceIndex = 0,
+    controller_state_with_pose_device_index: OpenVR.TrackedDeviceIndex = 0,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -445,6 +451,14 @@ const SystemWindow = struct {
                 .device_index = &self.trigger_haptic_pulse_device_index,
                 .axis_id = &self.trigger_haptic_pulse_axis_id,
                 .duration_microseconds = &self.trigger_haptic_pulse_duration_microseconds,
+            }, null);
+
+            try ui.getter(OpenVR.System, "getControllerState", system, .{
+                .device_index = &self.controller_state_device_index,
+            }, null);
+            try ui.getter(OpenVR.System, "getControllerStateWithPose", system, .{
+                .origin = &self.controller_state_with_pose_origin,
+                .device_index = &self.controller_state_with_pose_device_index,
             }, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
