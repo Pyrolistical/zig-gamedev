@@ -351,6 +351,9 @@ const SystemWindow = struct {
 
     next_event: ??OpenVR.System.Event = null,
 
+    poll_next_event_with_pose_origin: OpenVR.TrackingUniverseOrigin = .seated,
+    next_event_with_pose: ??OpenVR.System.EventWithPose = null,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -418,6 +421,9 @@ const SystemWindow = struct {
             }, null);
 
             try ui.persistedGetter(OpenVR.System, "pollNextEvent", system, .{}, ?OpenVR.System.Event, &self.next_event, null);
+            try ui.persistedGetter(OpenVR.System, "pollNextEventWithPose", system, .{
+                .origin = &self.poll_next_event_with_pose_origin,
+            }, ?OpenVR.System.EventWithPose, &self.next_event_with_pose, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
         }
