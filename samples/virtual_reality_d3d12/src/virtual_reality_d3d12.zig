@@ -368,6 +368,12 @@ const SystemWindow = struct {
     corigin: OpenVR.TrackedDeviceIndex = 0,
     controller_state_with_pose_device_index: OpenVR.TrackedDeviceIndex = 0,
 
+    button_name_enum: OpenVR.System.ButtonId = .system,
+
+    controller_axis_type_name_enum: OpenVR.System.ControllerAxisType = .none,
+
+    perform_fireware_update_device_index: OpenVR.TrackedDeviceIndex = 0,
+
     fn show(self: *SystemWindow, system: OpenVR.System, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -460,6 +466,27 @@ const SystemWindow = struct {
                 .origin = &self.controller_state_with_pose_origin,
                 .device_index = &self.controller_state_with_pose_device_index,
             }, null);
+
+            try ui.getter(OpenVR.System, "getButtonIdNameFromEnum", system, .{
+                .button_id = &self.button_name_enum,
+            }, null);
+
+            try ui.getter(OpenVR.System, "getControllerAxisTypeNameFromEnum", system, .{
+                .axis_type = &self.controller_axis_type_name_enum,
+            }, null);
+
+            try ui.getter(OpenVR.System, "isInputAvailable", system, .{}, null);
+            try ui.getter(OpenVR.System, "isSteamVRDrawingControllers", system, .{}, null);
+            try ui.getter(OpenVR.System, "shouldApplicationPause", system, .{}, null);
+            try ui.getter(OpenVR.System, "shouldApplicationReduceRenderingWork", system, .{}, null);
+
+            try ui.setter(OpenVR.System, "performFirmwareUpdate", system, .{
+                .device_index = &self.perform_fireware_update_device_index,
+            }, null);
+
+            try ui.setter(OpenVR.System, "acknowledgeQuitExiting", system, .{}, null);
+
+            try ui.allocGetter(allocator, OpenVR.System, "allocAppContainerFilePaths", system, .{}, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
         }

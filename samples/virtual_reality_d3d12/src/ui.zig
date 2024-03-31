@@ -637,6 +637,8 @@ fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.
                 OpenVR.System.TrackedDeviceProperty.Array.Matrix34,
                 OpenVR.System.TrackedDeviceProperty.String,
                 OpenVR.System.TrackedPropertyErrorCode,
+                OpenVR.System.ButtonId,
+                OpenVR.System.ControllerAxisType,
                 => {
                     _ = zgui.comboFromEnum(arg_name, arg_ptr);
                 },
@@ -650,7 +652,7 @@ fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.
     }
 }
 
-fn renderResult(comptime Return: type, result: Return) void {
+fn renderResult(allocator: ?std.mem.Allocator, comptime Return: type, result: Return) !void {
     switch (@typeInfo(Return)) {
         .Pointer => |pointer| {
             if (pointer.size == .Slice and pointer.child != u8 and pointer.child != OpenVR.Compositor.FrameTiming) {
@@ -658,7 +660,7 @@ fn renderResult(comptime Return: type, result: Return) void {
                     for (result, 0..) |v, i| {
                         zgui.pushIntId(@intCast(i));
                         defer zgui.popId();
-                        renderResult(pointer.child, v);
+                        try renderResult(allocator, pointer.child, v);
                         zgui.sameLine(.{});
                         zgui.text("[{}]", .{i});
                     }
@@ -672,7 +674,7 @@ fn renderResult(comptime Return: type, result: Return) void {
         },
         .Optional => |optional| {
             if (result) |v| {
-                renderResult(optional.child, v);
+                try renderResult(allocator, optional.child, v);
             } else {
                 zgui.indent(.{ .indent_w = 30 });
                 defer zgui.unindent(.{ .indent_w = 30 });
@@ -709,7 +711,10 @@ fn renderResult(comptime Return: type, result: Return) void {
                 zgui.text("(empty)", .{});
             }
         },
-        [:0]u8, [:0]const u8, []const u8 => readOnlyText("##", result),
+        [:0]u8,
+        [:0]const u8,
+        []const u8,
+        => readOnlyText("##", result),
         OpenVR.Chaperone.CalibrationState, OpenVR.TrackingUniverseOrigin => readOnlyText("##", @tagName(result)),
         OpenVR.Chaperone.PlayAreaSize => {
             readOnlyFloat("x", result.x);
@@ -840,6 +845,22 @@ fn renderResult(comptime Return: type, result: Return) void {
                 readOnlyTrackedDevicePose(result.pose);
             }
         },
+        OpenVR.System.FilePaths => {
+            if (allocator) |alloc| {
+                const paths = try result.allocPaths(alloc);
+                defer alloc.free(paths);
+
+                for (paths, 0..) |path, i| {
+                    zgui.pushIntId(@intCast(i));
+                    defer zgui.popId();
+                    readOnlyText("##", path);
+                    zgui.sameLine(.{});
+                    zgui.text("[{}]", .{i});
+                }
+            } else {
+                @panic("allocator required for " ++ @typeName(Return));
+            }
+        },
         else => @compileError(@typeName(Return) ++ " not implemented"),
     }
 }
@@ -909,7 +930,7 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         else => @call(.auto, f, args),
     };
 
-    renderResult(Payload, result);
+    try renderResult(null, Payload, result);
     zgui.newLine();
 }
 
@@ -957,7 +978,7 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
     zgui.text(") {s}", .{return_doc orelse @typeName(Payload)});
 
     if (result_ptr.*) |result| {
-        renderResult(Payload, result);
+        try renderResult(null, Payload, result);
     }
     zgui.newLine();
 }
@@ -1024,7 +1045,7 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
     zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
 
     if (result_ptr.*) |result| {
-        renderResult(Payload, result);
+        try renderResult(allocator, Payload, result);
     }
     zgui.newLine();
 }
@@ -1090,7 +1111,7 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
         else => @call(.auto, f, args),
     };
 
-    renderResult(Payload, result);
+    try renderResult(null, Payload, result);
     zgui.newLine();
 }
 
@@ -1136,7 +1157,9 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
             zgui.sameLine(.{});
             zgui.text(",", .{});
         }
-        renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
+        if (arg_types.len > 2) {
+            renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
+        }
         zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
     }
 
@@ -1159,6 +1182,7 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
     defer switch (Payload) {
         OpenVR.Chaperone.BoundsColor,
         OpenVR.Compositor.Poses,
+        OpenVR.System.FilePaths,
         => result.deinit(allocator),
         [:0]u8,
         []f32,
@@ -1170,7 +1194,7 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
         else => @compileError(@typeName(Payload) ++ " not implemented"),
     };
 
-    renderResult(Payload, result);
+    try renderResult(allocator, Payload, result);
     zgui.newLine();
 }
 
@@ -1201,18 +1225,30 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         }
     }
 
-    const Payload = f_info.return_type.?;
+    const Return = f_info.return_type.?;
+    const return_type_info = @typeInfo(Return);
+    const Payload = switch (return_type_info) {
+        .ErrorUnion => |error_union| error_union.payload,
+        else => Return,
+    };
     if (@typeInfo(Payload) != .Void) {
-        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeInfo(Payload));
+        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeName(Payload));
     }
 
+    const payload_prefix = switch (return_type_info) {
+        .ErrorUnion => "!",
+        else => "",
+    };
     if (zgui.button(f_name, .{})) {
-        @call(.auto, f, args);
+        switch (return_type_info) {
+            .ErrorUnion => try @call(.auto, f, args),
+            else => @call(.auto, f, args),
+        }
     }
     zgui.sameLine(.{});
     zgui.text("(", .{});
     renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse @typeName(Payload)});
+    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
 
     zgui.newLine();
 }

@@ -881,7 +881,7 @@ pub const FirmwareErrorCode = enum(i32) {
     pub fn maybe(firmware_error: FirmwareErrorCode) FirmwareError!void {
         return switch (firmware_error) {
             .none, .success => {},
-            .fail => FirmwareError.fail,
+            .fail => FirmwareError.Fail,
         };
     }
 };
@@ -1287,7 +1287,7 @@ pub fn allocStringTrackedDeviceProperty(self: Self, allocator: std.mem.Allocator
     const buffer = try allocator.allocSentinel(u8, buffer_length - 1, 0);
     if (buffer_length > 0) {
         property_error = undefined;
-        _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, @ptrCast(buffer.ptr), buffer_length, &property_error);
+        _ = self.function_table.GetStringTrackedDeviceProperty(device_index, property, buffer.ptr, buffer_length, &property_error);
         try property_error.maybe();
     }
 
@@ -1365,10 +1365,10 @@ pub fn getControllerStateWithPose(self: Self, origin: common.TrackingUniverseOri
         return null;
     }
 }
-pub fn getButtonIdNameFromEnum(self: Self, button_id: ButtonId) []u8 {
+pub fn getButtonIdNameFromEnum(self: Self, button_id: ButtonId) []const u8 {
     return std.mem.span(self.function_table.GetButtonIdNameFromEnum(button_id));
 }
-pub fn getControllerAxisTypeNameFromEnum(self: Self, axis_type: ControllerAxisType) [*c]u8 {
+pub fn getControllerAxisTypeNameFromEnum(self: Self, axis_type: ControllerAxisType) []const u8 {
     return std.mem.span(self.function_table.GetControllerAxisTypeNameFromEnum(axis_type));
 }
 pub fn isInputAvailable(self: Self) bool {
@@ -1390,10 +1390,38 @@ pub fn performFirmwareUpdate(self: Self, device_index: common.TrackedDeviceIndex
 pub fn acknowledgeQuitExiting(self: Self) void {
     self.function_table.AcknowledgeQuit_Exiting();
 }
-pub fn allocAppContainerFilePaths(self: Self, allocator: std.mem.Allocator, buffer_size: usize) ![]u8 {
-    var buffer = try allocator.alloc(u8, buffer_size);
-    const length = self.function_table.GetAppContainerFilePaths(&buffer, buffer_size);
-    return buffer[0..length];
+
+pub const FilePaths = struct {
+    buffer: [:0]u8,
+
+    fn init(buffer: [:0]u8) FilePaths {
+        return .{
+            .buffer = buffer,
+        };
+    }
+
+    pub fn deinit(self: FilePaths, allocator: std.mem.Allocator) void {
+        allocator.free(self.buffer);
+    }
+
+    pub fn allocPaths(self: FilePaths, allocator: std.mem.Allocator) ![][]const u8 {
+        var paths = std.ArrayList([]const u8).init(allocator);
+        var it = std.mem.splitScalar(u8, self.buffer, ';');
+        while (it.next()) |path| {
+            try paths.append(path);
+        }
+        return paths.toOwnedSlice();
+    }
+};
+
+pub fn allocAppContainerFilePaths(self: Self, allocator: std.mem.Allocator) !FilePaths {
+    const buffer_length = self.function_table.GetAppContainerFilePaths(null, 0);
+
+    const buffer = try allocator.allocSentinel(u8, buffer_length - 1, 0);
+    if (buffer_length > 0) {
+        _ = self.function_table.GetAppContainerFilePaths(buffer.ptr, buffer_length);
+    }
+    return FilePaths.init(buffer);
 }
 
 pub fn getRuntimeVersion(self: Self) [:0]const u8 {
@@ -1428,7 +1456,7 @@ pub const FunctionTable = extern struct {
     GetUint64TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) u64,
     GetMatrix34TrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, *TrackedPropertyErrorCode) callconv(.C) common.Matrix34,
     GetArrayTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty, PropertyTypeTagCode, ?*anyopaque, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
-    GetStringTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty.String, ?*u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
+    GetStringTrackedDeviceProperty: *const fn (common.TrackedDeviceIndex, TrackedDeviceProperty.String, [*c]u8, u32, *TrackedPropertyErrorCode) callconv(.C) u32,
     GetPropErrorNameFromEnum: *const fn (TrackedPropertyErrorCode) callconv(.C) [*c]u8,
     PollNextEvent: *const fn (*Event, u32) callconv(.C) bool,
     PollNextEventWithPose: *const fn (common.TrackingUniverseOrigin, *Event, u32, *common.TrackedDevicePose) callconv(.C) bool,
