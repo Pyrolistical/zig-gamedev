@@ -879,23 +879,7 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     var args: f_type.Args = undefined;
     {
         args[0] = self;
-
-        if (f_type.arg_types.len > 1) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| switch (pointer.size) {
-                        .Slice => arg_ptr,
-                        .One => switch (@typeInfo(pointer.child)) {
-                            .Array => std.mem.sliceTo(arg_ptr, 0),
-                            else => arg_ptr.*,
-                        },
-                        else => arg_ptr.*,
-                    },
-                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-                };
-            }
-        }
+        fillArgs(arg_ptrs_info, arg_ptrs, 1, f_type.Args, &args);
     }
 
     {
@@ -930,23 +914,7 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
     var args: f_type.Args = undefined;
     {
         args[0] = self;
-
-        if (f_type.arg_types.len > 1) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| switch (pointer.size) {
-                        .Slice => arg_ptr,
-                        .One => switch (@typeInfo(pointer.child)) {
-                            .Array => std.mem.sliceTo(arg_ptr, 0),
-                            else => arg_ptr.*,
-                        },
-                        else => arg_ptr.*,
-                    },
-                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-                };
-            }
-        }
+        fillArgs(arg_ptrs_info, arg_ptrs, 1, f_type.Args, &args);
     }
 
     if (f_type.Return != Payload) {
@@ -980,23 +948,7 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
     {
         args[0] = self;
         args[1] = allocator;
-
-        if (f_type.arg_types.len > 2) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 2] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| switch (pointer.size) {
-                        .Slice => arg_ptr,
-                        .One => switch (@typeInfo(pointer.child)) {
-                            .Array => std.mem.sliceTo(arg_ptr, 0),
-                            else => arg_ptr.*,
-                        },
-                        else => arg_ptr.*,
-                    },
-                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-                };
-            }
-        }
+        fillArgs(arg_ptrs_info, arg_ptrs, 2, f_type.Args, &args);
     }
 
     if (f_type.Payload != Payload) {
@@ -1033,6 +985,23 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
     zgui.newLine();
 }
 
+fn fillArgs(comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype, comptime offset: usize, comptime Args: type, args: *Args) void {
+    inline for (arg_ptrs_info.fields, 0..) |field, i| {
+        const arg_ptr = @field(arg_ptrs, field.name);
+        args[i + offset] = switch (@typeInfo(field.type)) {
+            .Pointer => |pointer| switch (pointer.size) {
+                .Slice => arg_ptr,
+                .One => switch (@typeInfo(pointer.child)) {
+                    .Array => std.mem.sliceTo(arg_ptr, 0),
+                    else => arg_ptr.*,
+                },
+                else => arg_ptr.*,
+            },
+            else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+        };
+    }
+}
+
 pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
     zgui.pushStrId(f_name);
     defer zgui.popId();
@@ -1042,22 +1011,7 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
 
     const f_type = fType(T, f_name);
     var args: f_type.Args = undefined;
-    {
-        inline for (arg_ptrs_info.fields, 0..) |field, i| {
-            const arg_ptr = @field(arg_ptrs, field.name);
-            args[i] = switch (@typeInfo(field.type)) {
-                .Pointer => |pointer| switch (pointer.size) {
-                    .Slice => arg_ptr,
-                    .One => switch (@typeInfo(pointer.child)) {
-                        .Array => std.mem.sliceTo(arg_ptr, 0),
-                        else => arg_ptr.*,
-                    },
-                    else => arg_ptr.*,
-                },
-                else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-            };
-        }
-    }
+    fillArgs(arg_ptrs_info, arg_ptrs, 0, f_type.Args, &args);
 
     {
         zgui.text("{s}(", .{f_name});
@@ -1092,23 +1046,7 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
     {
         args[0] = self;
         args[1] = allocator;
-
-        if (f_type.arg_types.len > 2) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 2] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| switch (pointer.size) {
-                        .Slice => arg_ptr,
-                        .One => switch (@typeInfo(pointer.child)) {
-                            .Array => std.mem.sliceTo(arg_ptr, 0),
-                            else => arg_ptr.*,
-                        },
-                        else => arg_ptr.*,
-                    },
-                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-                };
-            }
-        }
+        fillArgs(arg_ptrs_info, arg_ptrs, 2, f_type.Args, &args);
     }
 
     {
@@ -1202,23 +1140,7 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     var args: f_type.Args = undefined;
     {
         args[0] = self;
-
-        if (f_type.arg_types.len > 1) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| switch (pointer.size) {
-                        .Slice => arg_ptr,
-                        .One => switch (@typeInfo(pointer.child)) {
-                            .Array => std.mem.sliceTo(arg_ptr, 0),
-                            else => arg_ptr.*,
-                        },
-                        else => arg_ptr.*,
-                    },
-                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
-                };
-            }
-        }
+        fillArgs(arg_ptrs_info, arg_ptrs, 1, f_type.Args, &args);
     }
 
     if (@typeInfo(f_type.Payload) != .Void) {
