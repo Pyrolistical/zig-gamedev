@@ -498,14 +498,25 @@ const ApplicationsWindow = struct {
     add_application_manifest_temporary: bool = false,
     add_application_manifest_error: ?OpenVR.Applications.ApplicationError!void = null,
 
+    remove_application_manifest_full_path: [1024:0]u8 = undefined,
+    remove_application_manifest_error: ?OpenVR.Applications.ApplicationError!void = null,
+
+    is_application_installed_app_key: [OpenVR.Applications.max_application_key_length:0]u8 = undefined,
+
     fn show(self: *ApplicationsWindow, applications: OpenVR.Applications, _: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Applications", .{ .flags = .{ .always_auto_resize = true } })) {
             try ui.setter(OpenVR.Applications, "addApplicationManifest", applications, .{
-                .application_manifest_full_path = @as([:0]u8, &self.add_application_manifest_full_path),
+                .application_manifest_full_path = &self.add_application_manifest_full_path,
                 .temporary = &self.add_application_manifest_temporary,
             }, &self.add_application_manifest_error, null);
+            try ui.setter(OpenVR.Applications, "removeApplicationManifest", applications, .{
+                .application_manifest_full_path = &self.remove_application_manifest_full_path,
+            }, &self.remove_application_manifest_error, null);
+            try ui.getter(OpenVR.Applications, "isApplicationInstalled", applications, .{
+                .app_key = &self.is_application_installed_app_key,
+            }, null);
             try ui.getter(OpenVR.Applications, "getApplicationCount", applications, .{}, null);
         }
     }

@@ -96,11 +96,11 @@ pub fn addApplicationManifest(self: Self, application_manifest_full_path: [:0]co
     try error_code.maybe();
 }
 pub fn removeApplicationManifest(self: Self, application_manifest_full_path: [:0]const u8) ApplicationError!void {
-    const error_code = self.function_table.RemoveApplicationManifest(application_manifest_full_path.ptr);
+    const error_code = self.function_table.RemoveApplicationManifest(@constCast(application_manifest_full_path.ptr));
     try error_code.maybe();
 }
 pub fn isApplicationInstalled(self: Self, app_key: [:0]const u8) bool {
-    return self.function_table.IsApplicationInstalled(app_key.ptr);
+    return self.function_table.IsApplicationInstalled(@constCast(app_key.ptr));
 }
 pub fn getApplicationCount(self: Self) u32 {
     return self.function_table.GetApplicationCount();

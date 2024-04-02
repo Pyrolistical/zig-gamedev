@@ -883,7 +883,17 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         if (f_type.arg_types.len > 1) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = arg_ptr.*;
+                args[i + 1] = switch (@typeInfo(field.type)) {
+                    .Pointer => |pointer| switch (pointer.size) {
+                        .Slice => arg_ptr,
+                        .One => switch (@typeInfo(pointer.child)) {
+                            .Array => std.mem.sliceTo(arg_ptr, 0),
+                            else => arg_ptr.*,
+                        },
+                        else => arg_ptr.*,
+                    },
+                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+                };
             }
         }
     }
@@ -924,7 +934,17 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
         if (f_type.arg_types.len > 1) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = arg_ptr.*;
+                args[i + 1] = switch (@typeInfo(field.type)) {
+                    .Pointer => |pointer| switch (pointer.size) {
+                        .Slice => arg_ptr,
+                        .One => switch (@typeInfo(pointer.child)) {
+                            .Array => std.mem.sliceTo(arg_ptr, 0),
+                            else => arg_ptr.*,
+                        },
+                        else => arg_ptr.*,
+                    },
+                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+                };
             }
         }
     }
@@ -964,7 +984,17 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
         if (f_type.arg_types.len > 2) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 2] = arg_ptr.*;
+                args[i + 2] = switch (@typeInfo(field.type)) {
+                    .Pointer => |pointer| switch (pointer.size) {
+                        .Slice => arg_ptr,
+                        .One => switch (@typeInfo(pointer.child)) {
+                            .Array => std.mem.sliceTo(arg_ptr, 0),
+                            else => arg_ptr.*,
+                        },
+                        else => arg_ptr.*,
+                    },
+                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+                };
             }
         }
     }
@@ -1015,7 +1045,17 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
     {
         inline for (arg_ptrs_info.fields, 0..) |field, i| {
             const arg_ptr = @field(arg_ptrs, field.name);
-            args[i] = arg_ptr.*;
+            args[i] = switch (@typeInfo(field.type)) {
+                .Pointer => |pointer| switch (pointer.size) {
+                    .Slice => arg_ptr,
+                    .One => switch (@typeInfo(pointer.child)) {
+                        .Array => std.mem.sliceTo(arg_ptr, 0),
+                        else => arg_ptr.*,
+                    },
+                    else => arg_ptr.*,
+                },
+                else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+            };
         }
     }
 
@@ -1056,7 +1096,17 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
         if (f_type.arg_types.len > 2) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 2] = arg_ptr.*;
+                args[i + 2] = switch (@typeInfo(field.type)) {
+                    .Pointer => |pointer| switch (pointer.size) {
+                        .Slice => arg_ptr,
+                        .One => switch (@typeInfo(pointer.child)) {
+                            .Array => std.mem.sliceTo(arg_ptr, 0),
+                            else => arg_ptr.*,
+                        },
+                        else => arg_ptr.*,
+                    },
+                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+                };
             }
         }
     }
@@ -1157,7 +1207,14 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
                 args[i + 1] = switch (@typeInfo(field.type)) {
-                    .Pointer => |pointer| if (pointer.size == .Slice) arg_ptr else arg_ptr.*,
+                    .Pointer => |pointer| switch (pointer.size) {
+                        .Slice => arg_ptr,
+                        .One => switch (@typeInfo(pointer.child)) {
+                            .Array => std.mem.sliceTo(arg_ptr, 0),
+                            else => arg_ptr.*,
+                        },
+                        else => arg_ptr.*,
+                    },
                     else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
                 };
             }
