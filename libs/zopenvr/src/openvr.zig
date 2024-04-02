@@ -58,7 +58,12 @@ pub fn compositor(_: Self) common.InitError!Compositor {
     return try Compositor.init();
 }
 
+pub fn applications(_: Self) common.InitError!Applications {
+    return try Applications.init();
+}
+
 pub usingnamespace @import("common.zig");
 pub const System = @import("system.zig");
 pub const Chaperone = @import("chaperone.zig");
 pub const Compositor = @import("compositor.zig");
+pub const Applications = @import("applications.zig");

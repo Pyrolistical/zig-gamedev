@@ -583,7 +583,7 @@ fn readOnlyControllerState(controller_state: OpenVR.System.ControllerState) void
     }
 }
 
-fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
+fn renderParams(comptime arg_types: []const type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
     if (arg_types.len > 0) {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
@@ -617,6 +617,9 @@ fn renderParams(comptime arg_types: []type, comptime arg_ptrs_info: std.builtin.
                 },
                 f32 => {
                     _ = zgui.inputFloat(arg_name, .{ .v = arg_ptr });
+                },
+                [:0]const u8 => {
+                    _ = zgui.inputText(arg_name, .{ .buf = arg_ptr });
                 },
                 OpenVR.Color => {
                     _ = zgui.colorEdit4(arg_name, .{ .col = @ptrCast(arg_ptr), .flags = .{ .float = true } });
@@ -869,23 +872,15 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
-    const f = @field(T, f_name);
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-
     const ArgPtrs = @TypeOf(arg_ptrs);
     const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
     {
         args[0] = self;
 
-        if (arg_types.len > 1) {
+        if (f_type.arg_types.len > 1) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
                 args[i + 1] = arg_ptr.*;
@@ -893,44 +888,24 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
         }
     }
 
-    const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
-    const Payload = switch (return_type_info) {
-        .ErrorUnion => |error_union| error_union.payload,
-        else => Return,
-    };
-
     {
-        const payload_prefix = switch (return_type_info) {
-            .ErrorUnion => "!",
-            else => "",
-        };
         zgui.text("{s}(", .{f_name});
-        renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-        zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+        renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+        zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
 
-    const result: Payload = switch (return_type_info) {
-        .ErrorUnion => |error_union| switch (error_union.error_set) {
-            OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
-                OpenVR.System.TrackedPropertyError.UnknownProperty,
-                OpenVR.System.TrackedPropertyError.NotYetAvailable,
-                OpenVR.System.TrackedPropertyError.InvalidDevice,
-                => {
-                    zgui.indent(.{ .indent_w = 30 });
-                    defer zgui.unindent(.{ .indent_w = 30 });
-                    zgui.text("{!}", .{err});
-                    zgui.newLine();
-                    return;
-                },
-                else => return err,
-            },
-            else => try @call(.auto, f, args),
+    const result: f_type.Payload = switch (f_type.return_type_info) {
+        .ErrorUnion => @call(.auto, f_type.f, args) catch |err| {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("{!}", .{err});
+            zgui.newLine();
+            return;
         },
-        else => @call(.auto, f, args),
+        else => @call(.auto, f_type.f, args),
     };
 
-    try renderResult(null, Payload, result);
+    try renderResult(null, f_type.Payload, result);
     zgui.newLine();
 }
 
@@ -938,23 +913,15 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
-    const f = @field(T, f_name);
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-
     const ArgPtrs = @TypeOf(arg_ptrs);
     const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
     {
         args[0] = self;
 
-        if (arg_types.len > 1) {
+        if (f_type.arg_types.len > 1) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
                 args[i + 1] = arg_ptr.*;
@@ -962,20 +929,18 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
         }
     }
 
-    const Return = f_info.return_type.?;
-
-    if (Return != Payload) {
-        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(Return));
+    if (f_type.Return != Payload) {
+        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(f_type.Return));
     }
 
     if (zgui.button(f_name, .{})) {
-        result_ptr.* = @call(.auto, f, args);
+        result_ptr.* = @call(.auto, f_type.f, args);
     }
 
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse @typeName(Payload)});
+    renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse f_type.return_name});
 
     if (result_ptr.*) |result| {
         try renderResult(null, Payload, result);
@@ -987,24 +952,16 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
-    const f = @field(T, f_name);
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-
     const ArgPtrs = @TypeOf(arg_ptrs);
     const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
     {
         args[0] = self;
         args[1] = allocator;
 
-        if (arg_types.len > 2) {
+        if (f_type.arg_types.len > 2) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
                 args[i + 2] = arg_ptr.*;
@@ -1012,12 +969,8 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
         }
     }
 
-    const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
-    const ActualPayload = return_type_info.ErrorUnion.payload;
-
-    if (ActualPayload != Payload) {
-        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(ActualPayload));
+    if (f_type.Payload != Payload) {
+        @compileError("expected return type of " ++ f_name ++ " " ++ @typeName(Payload) ++ " but was " ++ @typeName(f_type.Payload));
     }
 
     if (zgui.button(f_name, .{})) {
@@ -1036,13 +989,13 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
                 else => @compileError(@typeName(Payload) ++ " not implemented"),
             }
         }
-        result_ptr.* = try @call(.auto, f, args);
+        result_ptr.* = try @call(.auto, f_type.f, args);
     }
 
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
+    renderParams(f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse f_type.return_name});
 
     if (result_ptr.*) |result| {
         try renderResult(allocator, Payload, result);
@@ -1054,19 +1007,11 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
-    const f = @field(T, f_name);
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-
     const ArgPtrs = @TypeOf(arg_ptrs);
     const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
     {
         inline for (arg_ptrs_info.fields, 0..) |field, i| {
             const arg_ptr = @field(arg_ptrs, field.name);
@@ -1074,44 +1019,24 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
         }
     }
 
-    const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
-    const Payload = switch (return_type_info) {
-        .ErrorUnion => |error_union| error_union.payload,
-        else => Return,
-    };
-
     {
-        const payload_prefix = switch (return_type_info) {
-            .ErrorUnion => "!",
-            else => "",
-        };
         zgui.text("{s}(", .{f_name});
-        renderParams(arg_types[0..], arg_ptrs_info, arg_ptrs);
-        zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+        renderParams(f_type.arg_types[0..], arg_ptrs_info, arg_ptrs);
+        zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
 
-    const result: Payload = switch (return_type_info) {
-        .ErrorUnion => |error_union| switch (error_union.error_set) {
-            OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
-                OpenVR.System.TrackedPropertyError.UnknownProperty,
-                OpenVR.System.TrackedPropertyError.NotYetAvailable,
-                OpenVR.System.TrackedPropertyError.InvalidDevice,
-                => {
-                    zgui.indent(.{ .indent_w = 30 });
-                    defer zgui.unindent(.{ .indent_w = 30 });
-                    zgui.text("{!}", .{err});
-                    zgui.newLine();
-                    return;
-                },
-                else => return err,
-            },
-            else => try @call(.auto, f, args),
+    const result: f_type.Payload = switch (f_type.return_type_info) {
+        .ErrorUnion => @call(.auto, f_type.f, args) catch |err| {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("{!}", .{err});
+            zgui.newLine();
+            return;
         },
-        else => @call(.auto, f, args),
+        else => @call(.auto, f_type.f, args),
     };
 
-    try renderResult(null, Payload, result);
+    try renderResult(null, f_type.Payload, result);
     zgui.newLine();
 }
 
@@ -1119,34 +1044,22 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
     zgui.pushStrId(f_name);
     defer zgui.popId();
 
-    const f = @field(T, f_name);
-    const F = @TypeOf(f);
-    const f_info = @typeInfo(F).Fn;
-    comptime var arg_types: [f_info.params.len]type = undefined;
-    inline for (f_info.params, 0..) |param, i| {
-        arg_types[i] = param.type.?;
-    }
-
     const ArgPtrs = @TypeOf(arg_ptrs);
     const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
 
-    const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
     {
         args[0] = self;
         args[1] = allocator;
 
-        if (arg_types.len > 2) {
+        if (f_type.arg_types.len > 2) {
             inline for (arg_ptrs_info.fields, 0..) |field, i| {
                 const arg_ptr = @field(arg_ptrs, field.name);
                 args[i + 2] = arg_ptr.*;
             }
         }
     }
-
-    const Return = f_info.return_type.?;
-    const return_type_info = @typeInfo(Return);
-    const Payload = return_type_info.ErrorUnion.payload;
 
     {
         zgui.text("{s}(", .{f_name});
@@ -1157,29 +1070,23 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
             zgui.sameLine(.{});
             zgui.text(",", .{});
         }
-        if (arg_types.len > 2) {
-            renderParams(arg_types[2..], arg_ptrs_info, arg_ptrs);
+        if (f_type.arg_types.len > 2) {
+            renderParams(f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
         }
-        zgui.text(") {s}", .{return_doc orelse ("!" ++ @typeName(Payload))});
+        zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
 
-    const result: Payload = switch (return_type_info.ErrorUnion.error_set) {
-        OpenVR.System.TrackedPropertyError => @call(.auto, f, args) catch |err| switch (err) {
-            OpenVR.System.TrackedPropertyError.UnknownProperty,
-            OpenVR.System.TrackedPropertyError.NotYetAvailable,
-            OpenVR.System.TrackedPropertyError.InvalidDevice,
-            => {
-                zgui.indent(.{ .indent_w = 30 });
-                defer zgui.unindent(.{ .indent_w = 30 });
-                zgui.text("{!}", .{err});
-                zgui.newLine();
-                return;
-            },
-            else => return err,
+    const result: f_type.Payload = switch (f_type.return_type_info) {
+        .ErrorUnion => @call(.auto, f_type.f, args) catch |err| {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("{!}", .{err});
+            zgui.newLine();
+            return;
         },
-        else => try @call(.auto, f, args),
+        else => try @call(.auto, f_type.f, args),
     };
-    defer switch (Payload) {
+    defer switch (f_type.Payload) {
         OpenVR.Chaperone.BoundsColor,
         OpenVR.Compositor.Poses,
         OpenVR.System.FilePaths,
@@ -1191,17 +1098,14 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
         []OpenVR.Matrix34,
         []OpenVR.Compositor.FrameTiming,
         => allocator.free(result),
-        else => @compileError(@typeName(Payload) ++ " not implemented"),
+        else => @compileError(@typeName(f_type.Payload) ++ " not implemented"),
     };
 
-    try renderResult(allocator, Payload, result);
+    try renderResult(allocator, f_type.Payload, result);
     zgui.newLine();
 }
 
-pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, return_doc: ?[:0]const u8) !void {
-    zgui.pushStrId(f_name);
-    defer zgui.popId();
-
+fn FType(comptime T: type, comptime f_name: []const u8) type {
     const f = @field(T, f_name);
     const F = @TypeOf(f);
     const f_info = @typeInfo(F).Fn;
@@ -1209,46 +1113,81 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     inline for (f_info.params, 0..) |param, i| {
         arg_types[i] = param.type.?;
     }
-    const ArgPtrs = @TypeOf(arg_ptrs);
-    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
-
     const Args = std.meta.Tuple(&arg_types);
-    var args: Args = undefined;
-    {
-        args[0] = self;
-
-        if (arg_types.len > 1) {
-            inline for (arg_ptrs_info.fields, 0..) |field, i| {
-                const arg_ptr = @field(arg_ptrs, field.name);
-                args[i + 1] = arg_ptr.*;
-            }
-        }
-    }
-
     const Return = f_info.return_type.?;
     const return_type_info = @typeInfo(Return);
     const Payload = switch (return_type_info) {
         .ErrorUnion => |error_union| error_union.payload,
         else => Return,
     };
-    if (@typeInfo(Payload) != .Void) {
-        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeName(Payload));
-    }
-
     const payload_prefix = switch (return_type_info) {
         .ErrorUnion => "!",
         else => "",
     };
+
+    return struct {
+        f: F = f,
+        F: type = F,
+        f_info: std.builtin.Type.Fn = f_info,
+        arg_types: [f_info.params.len]type = arg_types,
+        Args: type = Args,
+        Return: type = Return,
+        return_type_info: std.builtin.Type = return_type_info,
+        Payload: type = Payload,
+        return_name: []const u8 = payload_prefix ++ @typeName(Payload),
+    };
+}
+fn fType(comptime T: type, comptime f_name: []const u8) FType(T, f_name) {
+    return .{};
+}
+
+pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, error_ptr: ?*?fType(T, f_name).Return, return_doc: ?[:0]const u8) !void {
+    zgui.pushStrId(f_name);
+    defer zgui.popId();
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
+    {
+        args[0] = self;
+
+        if (f_type.arg_types.len > 1) {
+            inline for (arg_ptrs_info.fields, 0..) |field, i| {
+                const arg_ptr = @field(arg_ptrs, field.name);
+                args[i + 1] = switch (@typeInfo(field.type)) {
+                    .Pointer => |pointer| if (pointer.size == .Slice) arg_ptr else arg_ptr.*,
+                    else => @compileError("expected " ++ field.name ++ " to be a pointer but was a " ++ @typeName(field.type)),
+                };
+            }
+        }
+    }
+
+    if (@typeInfo(f_type.Payload) != .Void) {
+        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeName(f_type.Payload));
+    }
+
     if (zgui.button(f_name, .{})) {
-        switch (return_type_info) {
-            .ErrorUnion => try @call(.auto, f, args),
-            else => @call(.auto, f, args),
+        switch (f_type.return_type_info) {
+            .ErrorUnion => {
+                error_ptr.?.* = @call(.auto, f_type.f, args);
+            },
+            else => @call(.auto, f_type.f, args),
         }
     }
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(arg_types[1..], arg_ptrs_info, arg_ptrs);
-    zgui.text(") {s}", .{return_doc orelse (payload_prefix ++ @typeName(Payload))});
+    renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse f_type.return_name});
+
+    if (error_ptr) |ep| {
+        if (ep.*) |e| {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("{!}", .{e});
+        }
+    }
 
     zgui.newLine();
 }

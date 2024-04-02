@@ -457,7 +457,7 @@ const SystemWindow = struct {
                 .device_index = &self.trigger_haptic_pulse_device_index,
                 .axis_id = &self.trigger_haptic_pulse_axis_id,
                 .duration_microseconds = &self.trigger_haptic_pulse_duration_microseconds,
-            }, null);
+            }, null, null);
 
             try ui.getter(OpenVR.System, "getControllerState", system, .{
                 .device_index = &self.controller_state_device_index,
@@ -482,13 +482,31 @@ const SystemWindow = struct {
 
             try ui.setter(OpenVR.System, "performFirmwareUpdate", system, .{
                 .device_index = &self.perform_fireware_update_device_index,
-            }, null);
+            }, null, null);
 
-            try ui.setter(OpenVR.System, "acknowledgeQuitExiting", system, .{}, null);
+            try ui.setter(OpenVR.System, "acknowledgeQuitExiting", system, .{}, null, null);
 
             try ui.allocGetter(allocator, OpenVR.System, "allocAppContainerFilePaths", system, .{}, null);
 
             try ui.getter(OpenVR.System, "getRuntimeVersion", system, .{}, null);
+        }
+    }
+};
+
+const ApplicationsWindow = struct {
+    add_application_manifest_full_path: [1024:0]u8 = undefined,
+    add_application_manifest_temporary: bool = false,
+    add_application_manifest_error: ?OpenVR.Applications.ApplicationError!void = null,
+
+    fn show(self: *ApplicationsWindow, applications: OpenVR.Applications, _: std.mem.Allocator) !void {
+        zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
+        defer zgui.end();
+        if (zgui.begin("Applications", .{ .flags = .{ .always_auto_resize = true } })) {
+            try ui.setter(OpenVR.Applications, "addApplicationManifest", applications, .{
+                .application_manifest_full_path = @as([:0]u8, &self.add_application_manifest_full_path),
+                .temporary = &self.add_application_manifest_temporary,
+            }, &self.add_application_manifest_error, null);
+            try ui.getter(OpenVR.Applications, "getApplicationCount", applications, .{}, null);
         }
     }
 };
@@ -512,15 +530,15 @@ const ChaperoneWindow = struct {
             try ui.getter(OpenVR.Chaperone, "getPlayAreaSize", chaperone, .{}, "{x: meters, z: meters}");
             try ui.getter(OpenVR.Chaperone, "getPlayAreaRect", chaperone, .{}, "{corners: [4][x meters, y meters, z meters]}");
 
-            try ui.setter(OpenVR.Chaperone, "reloadInfo", chaperone, .{}, null);
-            try ui.setter(OpenVR.Chaperone, "setSceneColor", chaperone, .{ .scene_color = &self.scene_color }, null);
+            try ui.setter(OpenVR.Chaperone, "reloadInfo", chaperone, .{}, null, null);
+            try ui.setter(OpenVR.Chaperone, "setSceneColor", chaperone, .{ .scene_color = &self.scene_color }, null, null);
             try ui.allocGetter(allocator, OpenVR.Chaperone, "allocBoundsColor", chaperone, .{
                 .collision_bounds_fade_distance = &self.collision_bounds_fade_distance,
                 .bound_colors_count = &self.bound_colors_count,
             }, null);
             try ui.getter(OpenVR.Chaperone, "areBoundsVisible", chaperone, .{}, null);
-            try ui.setter(OpenVR.Chaperone, "forceBoundsVisible", chaperone, .{ .force = &self.force_bounds_visible }, null);
-            try ui.setter(OpenVR.Chaperone, "resetZeroPose", chaperone, .{ .origin = &self.reset_zero_pose_origin }, null);
+            try ui.setter(OpenVR.Chaperone, "forceBoundsVisible", chaperone, .{ .force = &self.force_bounds_visible }, null, null);
+            try ui.setter(OpenVR.Chaperone, "resetZeroPose", chaperone, .{ .origin = &self.reset_zero_pose_origin }, null, null);
         }
     }
 };
@@ -556,7 +574,7 @@ const CompositorWindow = struct {
         defer zgui.end();
         if (zgui.begin("Compositor", .{ .flags = .{ .always_auto_resize = true } })) {
             try ui.getter(OpenVR.Compositor, "getTrackingSpace", compositor, .{}, null);
-            try ui.setter(OpenVR.Compositor, "setTrackingSpace", compositor, .{ .origin = &self.tracking_space_origin }, null);
+            try ui.setter(OpenVR.Compositor, "setTrackingSpace", compositor, .{ .origin = &self.tracking_space_origin }, null, null);
             ui.allocPersistedGetter(
                 allocator,
                 OpenVR.Compositor,
@@ -601,29 +619,31 @@ const CompositorWindow = struct {
                 .seconds = &self.fade_color_seconds,
                 .color = &self.fade_color,
                 .background = &self.fade_color_background,
-            }, null);
+            }, null, null);
             try ui.getter(OpenVR.Compositor, "getCurrentGridAlpha", compositor, .{}, null);
             try ui.setter(OpenVR.Compositor, "fadeGrid", compositor, .{
                 .seconds = &self.fade_grid_seconds,
                 .background = &self.fade_grid_background,
-            }, null);
+            }, null, null);
 
-            try ui.setter(OpenVR.Compositor, "compositorBringToFront", compositor, .{}, null);
-            try ui.setter(OpenVR.Compositor, "compositorGoToBack", compositor, .{}, null);
-            try ui.setter(OpenVR.Compositor, "compositorQuit", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorBringToFront", compositor, .{}, null, null);
+            try ui.setter(OpenVR.Compositor, "compositorGoToBack", compositor, .{}, null, null);
+            try ui.setter(OpenVR.Compositor, "compositorQuit", compositor, .{}, null, null);
 
             try ui.getter(OpenVR.Compositor, "isFullscreen", compositor, .{}, null);
             try ui.getter(OpenVR.Compositor, "getCurrentSceneFocusProcess", compositor, .{}, null);
             try ui.getter(OpenVR.Compositor, "getLastFrameRenderer", compositor, .{}, null);
             try ui.getter(OpenVR.Compositor, "canRenderScene", compositor, .{}, null);
 
-            try ui.setter(OpenVR.Compositor, "compositorDumpImages", compositor, .{}, null);
+            try ui.setter(OpenVR.Compositor, "compositorDumpImages", compositor, .{}, null, null);
 
             try ui.getter(OpenVR.Compositor, "shouldAppRenderWithLowResources", compositor, .{}, null);
 
-            try ui.setter(OpenVR.Compositor, "forceInterleavedReprojectionOn", compositor, .{ .override = &self.force_interleaved_reprojection_override_on }, null);
-            try ui.setter(OpenVR.Compositor, "forceReconnectProcess", compositor, .{}, null);
-            try ui.setter(OpenVR.Compositor, "suspendRendering", compositor, .{ .suspend_rendering = &self.suspend_rendering }, null);
+            try ui.setter(OpenVR.Compositor, "forceInterleavedReprojectionOn", compositor, .{
+                .override = &self.force_interleaved_reprojection_override_on,
+            }, null, null);
+            try ui.setter(OpenVR.Compositor, "forceReconnectProcess", compositor, .{}, null, null);
+            try ui.setter(OpenVR.Compositor, "suspendRendering", compositor, .{ .suspend_rendering = &self.suspend_rendering }, null, null);
 
             try ui.getter(OpenVR.Compositor, "isMotionSmoothingEnabled", compositor, .{}, null);
             try ui.getter(OpenVR.Compositor, "isMotionSmoothingSupported", compositor, .{}, null);
@@ -635,6 +655,7 @@ const Windows = enum {
     system,
     chaperone,
     compositor,
+    applications,
 };
 
 const OpenVRWindow = struct {
@@ -653,14 +674,14 @@ const OpenVRWindow = struct {
     compositor: ?OpenVR.Compositor = null,
     compositor_window: CompositorWindow = .{},
 
+    applications_init_error: OpenVR.InitError = OpenVR.InitError.None,
+    applications: ?OpenVR.Applications = null,
+    applications_window: ApplicationsWindow = .{},
+
     next_window_focus: ?Windows = null,
 
     symbol_static_error: OpenVR.InitErrorCode = .none,
     english_static_error: OpenVR.InitErrorCode = .none,
-
-    pub fn init() OpenVRWindow {
-        return .{};
-    }
 
     pub fn deinit(self: *OpenVRWindow, allocator: std.mem.Allocator) void {
         if (self.openvr) |openvr| {
@@ -670,7 +691,7 @@ const OpenVRWindow = struct {
         self.openvr = null;
         self.system = null;
         self.chaperone = null;
-        self.compositor = null;
+        self.applications = null;
     }
 
     fn show(self: *OpenVRWindow, allocator: std.mem.Allocator) !void {
@@ -687,6 +708,7 @@ const OpenVRWindow = struct {
                     self.system = null;
                     self.chaperone = null;
                     self.compositor = null;
+                    self.applications = null;
                     return;
                 }
 
@@ -741,6 +763,20 @@ const OpenVRWindow = struct {
                         }
                     }
                 }
+                if (self.applications == null) {
+                    self.applications_init_error = OpenVR.InitError.None;
+                    self.applications = openvr.applications() catch |err| applications: {
+                        self.applications_init_error = err;
+                        break :applications null;
+                    };
+                    if (self.applications_init_error != OpenVR.InitError.None) {
+                        zgui.text("applications() error: {!}", .{self.applications_init_error});
+                    }
+                } else {
+                    if (zgui.button("focus applications window", .{})) {
+                        self.next_window_focus = .applications;
+                    }
+                }
             } else {
                 if (zgui.button("OpenVR.init()", .{})) {
                     self.init_error = OpenVR.InitError.None;
@@ -780,6 +816,13 @@ const OpenVRWindow = struct {
             }
             try self.compositor_window.show(compositor, allocator);
         }
+        if (self.applications) |applications| {
+            if (self.next_window_focus == .applications) {
+                zgui.setNextWindowFocus();
+                self.next_window_focus = null;
+            }
+            try self.applications_window.show(applications, allocator);
+        }
     }
 };
 
@@ -804,7 +847,7 @@ pub fn main() !void {
     var display_window = try DisplayWindow.init(allocator);
     defer display_window.deinit(allocator);
 
-    var open_vr_window = OpenVRWindow.init();
+    var open_vr_window: OpenVRWindow = .{};
     defer open_vr_window.deinit(allocator);
 
     var frame_timer = try std.time.Timer.start();

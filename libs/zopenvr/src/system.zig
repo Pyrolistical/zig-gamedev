@@ -1394,12 +1394,6 @@ pub fn acknowledgeQuitExiting(self: Self) void {
 pub const FilePaths = struct {
     buffer: [:0]u8,
 
-    fn init(buffer: [:0]u8) FilePaths {
-        return .{
-            .buffer = buffer,
-        };
-    }
-
     pub fn deinit(self: FilePaths, allocator: std.mem.Allocator) void {
         allocator.free(self.buffer);
     }
@@ -1421,7 +1415,7 @@ pub fn allocAppContainerFilePaths(self: Self, allocator: std.mem.Allocator) !Fil
     if (buffer_length > 0) {
         _ = self.function_table.GetAppContainerFilePaths(buffer.ptr, buffer_length);
     }
-    return FilePaths.init(buffer);
+    return FilePaths{ .buffer = buffer };
 }
 
 pub fn getRuntimeVersion(self: Self) [:0]const u8 {
