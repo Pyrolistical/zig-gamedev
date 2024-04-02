@@ -503,7 +503,10 @@ const ApplicationsWindow = struct {
 
     is_application_installed_app_key: [OpenVR.Applications.max_application_key_length:0]u8 = undefined,
 
-    fn show(self: *ApplicationsWindow, applications: OpenVR.Applications, _: std.mem.Allocator) !void {
+    application_key_by_index: u32 = 0,
+    application_key_by_process_id: u32 = 0,
+
+    fn show(self: *ApplicationsWindow, applications: OpenVR.Applications, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
         if (zgui.begin("Applications", .{ .flags = .{ .always_auto_resize = true } })) {
@@ -518,6 +521,12 @@ const ApplicationsWindow = struct {
                 .app_key = &self.is_application_installed_app_key,
             }, null);
             try ui.getter(OpenVR.Applications, "getApplicationCount", applications, .{}, null);
+            try ui.allocGetter(allocator, OpenVR.Applications, "allocApplicationKeyByIndex", applications, .{
+                .application_index = &self.application_key_by_index,
+            }, null);
+            try ui.allocGetter(allocator, OpenVR.Applications, "allocApplicationKeyByProcessId", applications, .{
+                .process_id = &self.application_key_by_process_id,
+            }, null);
         }
     }
 };

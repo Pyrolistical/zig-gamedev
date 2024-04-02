@@ -106,24 +106,26 @@ pub fn getApplicationCount(self: Self) u32 {
     return self.function_table.GetApplicationCount();
 }
 pub const max_application_key_length = 128;
-pub fn allocApplicationKeyByIndex(self: Self, allocator: std.mem.Allocator, application_index: u32) ![]u8 {
+pub fn allocApplicationKeyByIndex(self: Self, allocator: std.mem.Allocator, application_index: u32) (ApplicationError || error{OutOfMemory})![:0]u8 {
     var application_key_buffer: [max_application_key_length]u8 = undefined;
 
-    self.function_table.GetApplicationKeyByIndex(application_index, application_key_buffer.ptr, @intCast(application_key_buffer.len));
+    const error_code = self.function_table.GetApplicationKeyByIndex(application_index, &application_key_buffer, @intCast(application_key_buffer.len));
+    try error_code.maybe();
 
-    const application_key_length = std.mem.indexOfScalar(u8, application_key_buffer[0..], 0);
-    const application_key = try allocator.alloc(u8, application_key_length);
-    std.mem.copyForward(u8, application_key_buffer[0..application_key_length], application_key);
+    const application_key_length = std.mem.indexOfScalar(u8, application_key_buffer[0..], 0).?;
+    const application_key = try allocator.allocSentinel(u8, application_key_length, 0);
+    std.mem.copyForwards(u8, application_key, application_key_buffer[0..application_key_length]);
     return application_key;
 }
-pub fn allocApplicationKeyByProcessId(self: Self, allocator: std.mem.Allocator, process_id: u32) ![]u8 {
+pub fn allocApplicationKeyByProcessId(self: Self, allocator: std.mem.Allocator, process_id: u32) (ApplicationError || error{OutOfMemory})![:0]u8 {
     var application_key_buffer: [max_application_key_length]u8 = undefined;
 
-    self.function_table.GetApplicationKeyByProcessId(process_id, application_key_buffer.ptr, @intCast(application_key_buffer.len));
+    const error_code = self.function_table.GetApplicationKeyByProcessId(process_id, &application_key_buffer, @intCast(application_key_buffer.len));
+    try error_code.maybe();
 
-    const application_key_length = std.mem.indexOfScalar(u8, application_key_buffer[0..], 0);
-    const application_key = try allocator.alloc(u8, application_key_length);
-    std.mem.copyForward(u8, application_key_buffer[0..application_key_length], application_key);
+    const application_key_length = std.mem.indexOfScalar(u8, application_key_buffer[0..], 0).?;
+    const application_key = try allocator.allocSentinel(u8, application_key_length, 0);
+    std.mem.copyForwards(u8, application_key, application_key_buffer[0..application_key_length]);
     return application_key;
 }
 
