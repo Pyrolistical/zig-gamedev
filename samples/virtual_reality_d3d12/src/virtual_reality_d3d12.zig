@@ -506,6 +506,28 @@ const ApplicationsWindow = struct {
     application_key_by_index: u32 = 0,
     application_key_by_process_id: u32 = 0,
 
+    launch_application_app_key: [OpenVR.Applications.max_application_key_length:0]u8 = undefined,
+    launch_application_error: ?OpenVR.Applications.ApplicationError!void = null,
+
+    launch_template_application_template_app_key: [OpenVR.Applications.max_application_key_length:0]u8 = undefined,
+    launch_template_application_new_app_key: [OpenVR.Applications.max_application_key_length:0]u8 = undefined,
+    launch_template_application_keys: std.ArrayList(OpenVR.Applications.AppOverrideKeys),
+    launch_template_application_error: ?OpenVR.Applications.ApplicationError!void = null,
+
+    pub fn init(allocator: std.mem.Allocator) ApplicationsWindow {
+        return .{
+            .launch_template_application_keys = std.ArrayList(OpenVR.Applications.AppOverrideKeys).init(allocator),
+        };
+    }
+
+    pub fn deinit(self: ApplicationsWindow, allocator: std.mem.Allocator) void {
+        for (self.launch_template_application_keys.items) |*key| {
+            allocator.free(key.key);
+            allocator.free(key.value);
+        }
+        self.launch_template_application_keys.deinit();
+    }
+
     fn show(self: *ApplicationsWindow, applications: OpenVR.Applications, allocator: std.mem.Allocator) !void {
         zgui.setNextWindowPos(.{ .x = 100, .y = 0, .cond = .first_use_ever });
         defer zgui.end();
@@ -527,6 +549,14 @@ const ApplicationsWindow = struct {
             try ui.allocGetter(allocator, OpenVR.Applications, "allocApplicationKeyByProcessId", applications, .{
                 .process_id = &self.application_key_by_process_id,
             }, null);
+            try ui.setter(OpenVR.Applications, "launchApplication", applications, .{
+                .app_key = &self.launch_application_app_key,
+            }, &self.launch_application_error, null);
+            try ui.allocSetter(allocator, OpenVR.Applications, "allocLaunchTemplateApplication", applications, .{
+                .template_app_key = &self.launch_template_application_template_app_key,
+                .new_app_key = &self.launch_template_application_new_app_key,
+                .keys = &self.launch_template_application_keys,
+            }, &self.launch_template_application_error, null);
         }
     }
 };
@@ -696,18 +726,25 @@ const OpenVRWindow = struct {
 
     applications_init_error: OpenVR.InitError = OpenVR.InitError.None,
     applications: ?OpenVR.Applications = null,
-    applications_window: ApplicationsWindow = .{},
+    applications_window: ApplicationsWindow,
 
     next_window_focus: ?Windows = null,
 
     symbol_static_error: OpenVR.InitErrorCode = .none,
     english_static_error: OpenVR.InitErrorCode = .none,
 
+    pub fn init(allocator: std.mem.Allocator) OpenVRWindow {
+        return .{
+            .applications_window = ApplicationsWindow.init(allocator),
+        };
+    }
+
     pub fn deinit(self: *OpenVRWindow, allocator: std.mem.Allocator) void {
         if (self.openvr) |openvr| {
             openvr.deinit();
         }
         self.compositor_window.deinit(allocator);
+        self.applications_window.deinit(allocator);
         self.openvr = null;
         self.system = null;
         self.chaperone = null;
@@ -867,7 +904,7 @@ pub fn main() !void {
     var display_window = try DisplayWindow.init(allocator);
     defer display_window.deinit(allocator);
 
-    var open_vr_window: OpenVRWindow = .{};
+    var open_vr_window = OpenVRWindow.init(allocator);
     defer open_vr_window.deinit(allocator);
 
     var frame_timer = try std.time.Timer.start();

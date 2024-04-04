@@ -583,7 +583,7 @@ fn readOnlyControllerState(controller_state: OpenVR.System.ControllerState) void
     }
 }
 
-fn renderParams(comptime arg_types: []const type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) void {
+fn renderParams(allocator: ?std.mem.Allocator, comptime arg_types: []const type, comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype) !void {
     if (arg_types.len > 0) {
         zgui.indent(.{ .indent_w = 30 });
         defer zgui.unindent(.{ .indent_w = 30 });
@@ -591,7 +591,8 @@ fn renderParams(comptime arg_types: []const type, comptime arg_ptrs_info: std.bu
             @compileError(std.fmt.comptimePrint("expected arg_ptrs to have {} fields, but was {}", .{ arg_types.len, arg_ptrs_info.fields.len }));
         }
         inline for (arg_types, 0..) |arg_type, i| {
-            const arg_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{arg_ptrs_info.fields[i].name});
+            const arg_ptr_info = arg_ptrs_info.fields[i];
+            const arg_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{arg_ptr_info.name});
             const arg_ptr = @field(arg_ptrs, arg_name);
             switch (arg_type) {
                 bool => {
@@ -645,7 +646,47 @@ fn renderParams(comptime arg_types: []const type, comptime arg_ptrs_info: std.bu
                 => {
                     _ = zgui.comboFromEnum(arg_name, arg_ptr);
                 },
-                else => @compileError(@typeName(arg_type) ++ " not implemented"),
+                else => switch (arg_ptr_info.type) {
+                    *std.ArrayList(OpenVR.Applications.AppOverrideKeys) => {
+                        if (allocator == null) {
+                            @panic(@typeName(arg_type) ++ " requires allocator");
+                        }
+                        zgui.pushStrId(arg_name);
+                        defer zgui.popId();
+                        zgui.text("{s}", .{arg_name});
+                        zgui.sameLine(.{});
+                        if (zgui.button("Add", .{})) {
+                            const key = .{
+                                .key = try allocator.?.allocSentinel(u8, 1024, 0),
+                                .value = try allocator.?.allocSentinel(u8, 1024, 0),
+                            };
+                            key.key[0] = 0;
+                            key.value[0] = 0;
+                            try arg_ptr.append(key);
+                        }
+                        zgui.indent(.{ .indent_w = 30 });
+                        defer zgui.unindent(.{ .indent_w = 30 });
+                        if (arg_ptr.items.len > 0) {
+                            for (arg_ptr.items, 0..) |*app_override_key, j| {
+                                zgui.pushIntId(@intCast(j));
+                                defer zgui.popId();
+                                _ = zgui.inputText("key", .{ .buf = app_override_key.key });
+                                zgui.sameLine(.{});
+                                _ = zgui.inputText("value", .{ .buf = app_override_key.value });
+                                zgui.sameLine(.{});
+                                if (zgui.button("Remove", .{})) {
+                                    const key = arg_ptr.orderedRemove(j);
+                                    allocator.?.free(key.key);
+                                    allocator.?.free(key.value);
+                                    break;
+                                }
+                            }
+                        } else {
+                            zgui.text("(empty)", .{});
+                        }
+                    },
+                    else => @compileError(@typeName(arg_type) ++ " not implemented"),
+                },
             }
             zgui.sameLine(.{});
             zgui.text(", ", .{});
@@ -884,7 +925,7 @@ pub fn getter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
 
     {
         zgui.text("{s}(", .{f_name});
-        renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+        try renderParams(null, f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
 
@@ -927,7 +968,7 @@ pub fn persistedGetter(comptime T: type, comptime f_name: [:0]const u8, self: T,
 
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+    try renderParams(null, f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
     zgui.text(") {s}", .{return_doc orelse f_type.return_name});
 
     if (result_ptr.*) |result| {
@@ -976,7 +1017,7 @@ pub fn allocPersistedGetter(allocator: std.mem.Allocator, comptime T: type, comp
 
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
+    try renderParams(allocator, f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
     zgui.text(") {s}", .{return_doc orelse f_type.return_name});
 
     if (result_ptr.*) |result| {
@@ -993,7 +1034,10 @@ fn fillArgs(comptime arg_ptrs_info: std.builtin.Type.Struct, arg_ptrs: anytype, 
                 .Slice => arg_ptr,
                 .One => switch (@typeInfo(pointer.child)) {
                     .Array => std.mem.sliceTo(arg_ptr, 0),
-                    else => arg_ptr.*,
+                    else => switch (field.type) {
+                        *std.ArrayList(OpenVR.Applications.AppOverrideKeys) => arg_ptr.items,
+                        else => arg_ptr.*,
+                    },
                 },
                 else => arg_ptr.*,
             },
@@ -1015,7 +1059,7 @@ pub fn staticGetter(comptime T: type, comptime f_name: [:0]const u8, arg_ptrs: a
 
     {
         zgui.text("{s}(", .{f_name});
-        renderParams(f_type.arg_types[0..], arg_ptrs_info, arg_ptrs);
+        try renderParams(null, f_type.arg_types[0..], arg_ptrs_info, arg_ptrs);
         zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
 
@@ -1059,7 +1103,7 @@ pub fn allocGetter(allocator: std.mem.Allocator, comptime T: type, comptime f_na
             zgui.text(",", .{});
         }
         if (f_type.arg_types.len > 2) {
-            renderParams(f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
+            try renderParams(allocator, f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
         }
         zgui.text(") {s}", .{return_doc orelse f_type.return_name});
     }
@@ -1157,7 +1201,50 @@ pub fn setter(comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs
     }
     zgui.sameLine(.{});
     zgui.text("(", .{});
-    renderParams(f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+    try renderParams(null, f_type.arg_types[1..], arg_ptrs_info, arg_ptrs);
+    zgui.text(") {s}", .{return_doc orelse f_type.return_name});
+
+    if (error_ptr) |ep| {
+        if (ep.*) |e| {
+            zgui.indent(.{ .indent_w = 30 });
+            defer zgui.unindent(.{ .indent_w = 30 });
+            zgui.text("{!}", .{e});
+        }
+    }
+
+    zgui.newLine();
+}
+
+pub fn allocSetter(allocator: std.mem.Allocator, comptime T: type, comptime f_name: [:0]const u8, self: T, arg_ptrs: anytype, error_ptr: ?*?fType(T, f_name).Return, return_doc: ?[:0]const u8) !void {
+    zgui.pushStrId(f_name);
+    defer zgui.popId();
+
+    const ArgPtrs = @TypeOf(arg_ptrs);
+    const arg_ptrs_info = @typeInfo(ArgPtrs).Struct;
+
+    const f_type = fType(T, f_name);
+    var args: f_type.Args = undefined;
+    {
+        args[0] = self;
+        args[1] = allocator;
+        fillArgs(arg_ptrs_info, arg_ptrs, 2, f_type.Args, &args);
+    }
+
+    if (@typeInfo(f_type.Payload) != .Void) {
+        @compileError("expected return type of " ++ f_name ++ " to be void, but was " ++ @typeName(f_type.Payload));
+    }
+
+    if (zgui.button(f_name, .{})) {
+        switch (f_type.return_type_info) {
+            .ErrorUnion => {
+                error_ptr.?.* = @call(.auto, f_type.f, args);
+            },
+            else => @call(.auto, f_type.f, args),
+        }
+    }
+    zgui.sameLine(.{});
+    zgui.text("(", .{});
+    try renderParams(allocator, f_type.arg_types[2..], arg_ptrs_info, arg_ptrs);
     zgui.text(") {s}", .{return_doc orelse f_type.return_name});
 
     if (error_ptr) |ep| {

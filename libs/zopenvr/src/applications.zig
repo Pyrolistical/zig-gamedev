@@ -130,17 +130,29 @@ pub fn allocApplicationKeyByProcessId(self: Self, allocator: std.mem.Allocator, 
 }
 
 pub fn launchApplication(self: Self, app_key: [:0]const u8) ApplicationError!void {
-    const error_code = self.function_table.LaunchApplication(app_key.ptr);
+    const error_code = self.function_table.LaunchApplication(@constCast(app_key.ptr));
     try error_code.maybe();
 }
 
-pub const AppOverrideKeys = extern struct {
+pub const AppOverrideKeys = struct {
+    key: [:0]u8,
+    value: [:0]u8,
+};
+const ExternAppOverrideKeys = extern struct {
     key: [*c]u8,
     value: [*c]u8,
 };
 
-pub fn launchTemplateApplication(self: Self, template_app_key: [:0]const u8, new_app_key: [:0]const u8, keys: []AppOverrideKeys) ApplicationError!void {
-    const error_code = self.function_table.LaunchTemplateApplication(template_app_key.ptr, new_app_key.ptr, keys.ptr, @intCast(keys.len));
+pub fn allocLaunchTemplateApplication(self: Self, allocator: std.mem.Allocator, template_app_key: [:0]const u8, new_app_key: [:0]const u8, keys: []AppOverrideKeys) (ApplicationError || error{OutOfMemory})!void {
+    const extern_keys = try allocator.alloc(ExternAppOverrideKeys, keys.len);
+    defer allocator.free(extern_keys);
+    for (keys, 0..) |key, i| {
+        extern_keys[i] = .{
+            .key = key.key.ptr,
+            .value = key.value.ptr,
+        };
+    }
+    const error_code = self.function_table.LaunchTemplateApplication(@constCast(template_app_key.ptr), @constCast(new_app_key.ptr), extern_keys.ptr, @intCast(extern_keys.len));
     try error_code.maybe();
 }
 
@@ -365,7 +377,7 @@ pub const FunctionTable = extern struct {
     GetApplicationKeyByIndex: *const fn (u32, [*c]u8, u32) callconv(.C) ApplicationErrorCode,
     GetApplicationKeyByProcessId: *const fn (u32, [*c]u8, u32) callconv(.C) ApplicationErrorCode,
     LaunchApplication: *const fn ([*c]u8) callconv(.C) ApplicationErrorCode,
-    LaunchTemplateApplication: *const fn ([*c]u8, [*c]u8, [*c]AppOverrideKeys, u32) callconv(.C) ApplicationErrorCode,
+    LaunchTemplateApplication: *const fn ([*c]u8, [*c]u8, [*c]ExternAppOverrideKeys, u32) callconv(.C) ApplicationErrorCode,
     LaunchApplicationFromMimeType: *const fn ([*c]u8, [*c]u8) callconv(.C) ApplicationErrorCode,
     LaunchDashboardOverlay: *const fn ([*c]u8) callconv(.C) ApplicationErrorCode,
     CancelApplicationLaunch: *const fn ([*c]u8) callconv(.C) bool,
