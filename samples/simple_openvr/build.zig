@@ -1,12 +1,46 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const Options = @import("../../build.zig").Options;
-
 const demo_name = "simple_openvr";
 const content_dir = demo_name ++ "_content/";
 
-pub fn build(b: *std.Build, options: Options) *std.Build.Step.Compile {
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const exe = buildWip(b, .{
+        .target = target,
+        .optimize = optimize,
+        .zd3d12_enable_debug_layer = b.option(
+            bool,
+            "zd3d12-enable-debug-layer",
+            "Enable DirectX 12 debug layer",
+        ) orelse false,
+        .zd3d12_enable_gbv = b.option(
+            bool,
+            "zd3d12-enable-gbv",
+            "Enable DirectX 12 GPU-Based Validation (GBV)",
+        ) orelse false,
+    });
+
+    // TODO: Problems with LTO on Windows.
+    if (exe.rootModuleTarget().os.tag == .windows) {
+        exe.want_lto = false;
+    }
+
+    if (exe.root_module.optimize == .ReleaseFast) {
+        exe.root_module.strip = true;
+    }
+
+    const install_exe = b.addInstallArtifact(exe, .{});
+    b.getInstallStep().dependOn(&install_exe.step);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(&install_exe.step);
+    b.step("run", "Run '" ++ demo_name ++ "' demo").dependOn(&run_cmd.step);
+}
+
+pub fn buildWip(b: *std.Build, options: anytype) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = demo_name,
         .root_source_file = .{ .path = thisDir() ++ "/src/" ++ demo_name ++ ".zig" },
@@ -71,7 +105,7 @@ pub fn build(b: *std.Build, options: Options) *std.Build.Step.Compile {
     // is required by DirectX 12 Agility SDK.
     exe.rdynamic = true;
 
-    @import("zwin32").install_d3d12(&exe.step, .bin, "libs/zwin32") catch unreachable;
+    @import("zwin32").install_d3d12(&exe.step, .bin, zwin32.path("").getPath(b)) catch unreachable;
 
     return exe;
 }
