@@ -55,6 +55,7 @@ pub fn build(b: *std.Build) !void {
     if (target.result.os.tag == .windows) {
         if (builtin.os.tag == .windows or builtin.os.tag == .linux) {
             buildAndInstallSamples(b, options, samples_windows_linux);
+            buildAndInstallSamplesWip(b, options, samples_windows_linux_wip);
             if (builtin.os.tag == .windows) {
                 buildAndInstallSamples(b, options, samples_windows);
             }
@@ -105,12 +106,15 @@ const samples_windows_linux = struct {
     pub const minimal_zgui_glfw_d3d12 = @import("samples/minimal_zgui_glfw_d3d12/build.zig");
     pub const minimal_zgui_win32_d3d12 = @import("samples/minimal_zgui_win32_d3d12/build.zig");
     pub const openvr_test = @import("samples/openvr_test/build.zig");
-    pub const simple_openvr = @import("samples/simple_openvr/build.zig");
     pub const rasterization = @import("samples/rasterization/build.zig");
     // TODO: get simple raytracer working again
     //pub const simple_raytracer = @import("samples/simple_raytracer/build.zig");
     pub const textured_quad = @import("samples/textured_quad/build.zig");
     pub const triangle = @import("samples/triangle/build.zig");
+};
+
+const samples_windows_linux_wip = struct {
+    pub const simple_openvr = @import("samples/simple_openvr/build.zig");
 };
 
 const samples_cross_platform = struct {
@@ -139,6 +143,35 @@ const samples_cross_platform = struct {
 fn buildAndInstallSamples(b: *std.Build, options: Options, comptime samples: type) void {
     inline for (comptime std.meta.declarations(samples)) |d| {
         const exe = @field(samples, d.name).build(b, options);
+
+        // TODO: Problems with LTO on Windows.
+        if (exe.rootModuleTarget().os.tag == .windows) {
+            exe.want_lto = false;
+        }
+
+        if (exe.root_module.optimize == .ReleaseFast) {
+            exe.root_module.strip = true;
+        }
+
+        const install_exe = b.addInstallArtifact(exe, .{});
+        b.getInstallStep().dependOn(&install_exe.step);
+        b.step(d.name, "Build '" ++ d.name ++ "' demo").dependOn(&install_exe.step);
+
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.step.dependOn(&install_exe.step);
+        b.step(d.name ++ "-run", "Run '" ++ d.name ++ "' demo").dependOn(&run_cmd.step);
+    }
+}
+
+fn buildAndInstallSamplesWip(b: *std.Build, options: Options, comptime samples: type) void {
+    inline for (comptime std.meta.declarations(samples)) |d| {
+        const exe = @field(samples, d.name).buildWip(
+            b,
+            options.target,
+            options.optimize,
+            options.zd3d12_enable_debug_layer,
+            options.zd3d12_enable_gbv,
+        );
 
         // TODO: Problems with LTO on Windows.
         if (exe.rootModuleTarget().os.tag == .windows) {

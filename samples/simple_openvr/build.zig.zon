@@ -1,0 +1,17 @@
+.{
+    .name = "simple_openvr",
+    .version = "0.0.1",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "simple_openvr_content",
+        "src",
+    },
+    .dependencies = .{
+        .zd3d12 = .{ .path = "../../libs/zd3d12" },
+        .zglfw = .{ .path = "../../libs/zglfw" },
+        .zmath = .{ .path = "../../libs/zmath" },
+        .zopenvr = .{ .path = "../../libs/zopenvr" },
+        .zwin32 = .{ .path = "../../libs/zwin32" },
+    },
+}
